@@ -11,12 +11,12 @@ st.write("Профессиональный расчет доходности. П
 ROBLOX_TAX = 0.30       # Комиссия платформы Roblox
 INVESTMENT = 4500       # Стартовый капитал инвестора
 
-# 1. Единый источник правды в памяти
-if "dau" not in st.session_state: st.session_state["dau"] = 20000
+# 1. Инициализация базовых параметров в памяти (session_state)
+if "dau_val" not in st.session_state: st.session_state["dau_val"] = 20000
+if "mau_val" not in st.session_state: st.session_state["mau_val"] = 200000
+if "ccu_val" not in st.session_state: st.session_state["ccu_val"] = 486
 if "sticky_factor" not in st.session_state: st.session_state["sticky_factor"] = 10.0
 if "session_time" not in st.session_state: st.session_state["session_time"] = 35
-if "mau" not in st.session_state: st.session_state["mau"] = 200000
-if "ccu" not in st.session_state: st.session_state["ccu"] = 486
 
 if "conv" not in st.session_state: st.session_state["conv"] = 2.0
 if "arppu" not in st.session_state: st.session_state["arppu"] = 250
@@ -27,46 +27,40 @@ if "marketing_rate" not in st.session_state: st.session_state["marketing_rate"] 
 if "tax_rate" not in st.session_state: st.session_state["tax_rate"] = 6
 if "share" not in st.session_state: st.session_state["share"] = 35
 
-# 2. Математические колбэки для пересчета зависимостей + принудительный реран экрана
-def update_from_dau():
-    st.session_state["dau"] = st.session_state["dau_val"]
-    sticky_calc = st.session_state["dau"] / (st.session_state["sticky_factor"] / 100.0) if st.session_state["sticky_factor"] > 0 else 0
-    st.session_state["mau"] = int(sticky_calc)
-    st.session_state["ccu"] = int((st.session_state["dau"] * st.session_state["session_time"]) / 1440)
-    st.rerun()
+# 2. Математические колбэки (изменение ключа напрямую двигает ползунки)
+def sync_dau():
+    sticky_calc = st.session_state["dau_val"] / (st.session_state["sticky_factor"] / 100.0) if st.session_state["sticky_factor"] > 0 else 0
+    st.session_state["mau_val"] = int(sticky_calc)
+    st.session_state["ccu_val"] = int((st.session_state["dau_val"] * st.session_state["session_time"]) / 1440)
 
-def update_from_mau():
-    st.session_state["mau"] = st.session_state["mau_val"]
-    st.session_state["dau"] = int(st.session_state["mau"] * (st.session_state["sticky_factor"] / 100.0))
-    st.session_state["ccu"] = int((st.session_state["dau"] * st.session_state["session_time"]) / 1440)
-    st.rerun()
+def sync_mau():
+    st.session_state["dau_val"] = int(st.session_state["mau_val"] * (st.session_state["sticky_factor"] / 100.0))
+    st.session_state["ccu_val"] = int((st.session_state["dau_val"] * st.session_state["session_time"]) / 1440)
 
-def update_from_ccu():
-    st.session_state["ccu"] = st.session_state["ccu_val"]
-    st.session_state["dau"] = int((st.session_state["ccu"] * 1440) / st.session_state["session_time"]) if st.session_state["session_time"] > 0 else 0
-    st.session_state["mau"] = int(st.session_state["dau"] / (st.session_state["sticky_factor"] / 100.0)) if st.session_state["sticky_factor"] > 0 else 0
-    st.rerun()
+def sync_ccu():
+    st.session_state["dau_val"] = int((st.session_state["ccu_val"] * 1440) / st.session_state["session_time"]) if st.session_state["session_time"] > 0 else 0
+    st.session_state["mau_val"] = int(st.session_state["dau_val"] / (st.session_state["sticky_factor"] / 100.0)) if st.session_state["sticky_factor"] > 0 else 0
 
-def update_from_metrics():
-    st.session_state["mau"] = int(st.session_state["dau"] / (st.session_state["sticky_factor"] / 100.0)) if st.session_state["sticky_factor"] > 0 else 0
-    st.session_state["ccu"] = int((st.session_state["dau"] * st.session_state["session_time"]) / 1440)
-    st.rerun()
+def sync_metrics():
+    sticky_calc = st.session_state["dau_val"] / (st.session_state["sticky_factor"] / 100.0) if st.session_state["sticky_factor"] > 0 else 0
+    st.session_state["mau_val"] = int(sticky_calc)
+    st.session_state["ccu_val"] = int((st.session_state["dau_val"] * st.session_state["session_time"]) / 1440)
 
 # Боковая панель управления
 st.sidebar.header("🎛️ Настройка переменных")
 input_mode = st.sidebar.radio("Режим ввода данных:", ("Ползунки", "Ввод вручную"))
 st.sidebar.markdown("---")
 
-# 3. Отрисовка интерфейса
+# 3. Отрисовка интерфейса (связка идет только через key, без жесткого value)
 if input_mode == "Ползунки":
     st.sidebar.markdown("### 👥 Аудитория и Трафик")
-    st.sidebar.slider("Игроков в день (DAU):", min_value=1000, max_value=500000, step=1000, key="dau_val", value=int(st.session_state["dau"]), on_change=update_from_dau)
-    st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=5000000, step=10000, key="mau_val", value=int(st.session_state["mau"]), on_change=update_from_mau)
-    st.sidebar.slider("Средний онлайн (CCU):", min_value=10, max_value=30000, step=50, key="ccu_val", value=int(st.session_state["ccu"]), on_change=update_from_ccu)
+    st.sidebar.slider("Игроков в день (DAU):", min_value=1000, max_value=500000, step=1000, key="dau_val", on_change=sync_dau)
+    st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=5000000, step=10000, key="mau_val", on_change=sync_mau)
+    st.sidebar.slider("Средний онлайн (CCU):", min_value=10, max_value=30000, step=50, key="ccu_val", on_change=sync_ccu)
     
     st.sidebar.markdown("### 🕒 Вовлеченность и Удержание")
-    st.sidebar.slider("Липучесть игры (Sticky Factor %):", min_value=5.0, max_value=30.0, step=0.5, format="%.1f", key="sticky_factor", on_change=update_from_metrics)
-    st.sidebar.slider("Длина сессии (минут):", min_value=5, max_value=120, step=5, key="session_time", on_change=update_from_metrics)
+    st.sidebar.slider("Липучесть игры (Sticky Factor %):", min_value=5.0, max_value=30.0, step=0.5, format="%.1f", key="sticky_factor", on_change=sync_metrics)
+    st.sidebar.slider("Длина сессии (минут):", min_value=5, max_value=120, step=5, key="session_time", on_change=sync_metrics)
     
     st.sidebar.markdown("### 💎 Монетизация и Экономика")
     st.sidebar.slider("Конверсия в донат (%):", min_value=0.1, max_value=10.0, step=0.1, format="%.1f", key="conv")
@@ -79,13 +73,13 @@ if input_mode == "Ползунки":
     st.sidebar.slider("Доля инвестора после ROI (%):", min_value=0, max_value=100, step=5, key="share")
 else:
     st.sidebar.markdown("### 👥 Аудитория и Трафик")
-    st.sidebar.number_input("Игроков в день (DAU):", min_value=0, max_value=5000000, step=1000, key="dau_val", value=int(st.session_state["dau"]), on_change=update_from_dau)
-    st.sidebar.number_input("Игроков в месяц (MAU):", min_value=0, max_value=50000000, step=10000, key="mau_val", value=int(st.session_state["mau"]), on_change=update_from_mau)
-    st.sidebar.number_input("Средний онлайн (CCU):", min_value=0, max_value=100000, step=100, key="ccu_val", value=int(st.session_state["ccu"]), on_change=update_from_ccu)
+    st.sidebar.number_input("Игроков в день (DAU):", min_value=0, max_value=5000000, step=1000, key="dau_val", on_change=sync_dau)
+    st.sidebar.number_input("Игроков в месяц (MAU):", min_value=0, max_value=50000000, step=10000, key="mau_val", on_change=sync_mau)
+    st.sidebar.number_input("Средний онлайн (CCU):", min_value=0, max_value=100000, step=100, key="ccu_val", on_change=sync_ccu)
     
     st.sidebar.markdown("### 🕒 Вовлеченность и Удержание")
-    st.sidebar.number_input("Липучесть игры (Sticky Factor %):", min_value=1.0, max_value=100.0, step=0.5, format="%.1f", key="sticky_factor", on_change=update_from_metrics)
-    st.sidebar.number_input("Длина сессии (минут):", min_value=1, max_value=240, step=5, key="session_time", on_change=update_from_metrics)
+    st.sidebar.number_input("Липучесть игры (Sticky Factor %):", min_value=1.0, max_value=100.0, step=0.5, format="%.1f", key="sticky_factor", on_change=sync_metrics)
+    st.sidebar.number_input("Длина сессии (минут):", min_value=1, max_value=240, step=5, key="session_time", on_change=sync_metrics)
     
     st.sidebar.markdown("### 💎 Монетизация и Экономика")
     st.sidebar.number_input("Конверсия в донат (%):", min_value=0.0, max_value=100.0, step=0.1, format="%.1f", key="conv")
@@ -97,10 +91,10 @@ else:
     st.sidebar.number_input("Налог на вывод денег (%):", min_value=0, max_value=100, step=1, key="tax_rate")
     st.sidebar.number_input("Доля инвестора после ROI (%):", min_value=0, max_value=100, step=5, key="share")
 
-# Извлекаем финальные значения из сессии для расчетов
-dau = st.session_state["dau"]
-mau = st.session_state["mau"]
-ccu = st.session_state["ccu"]
+# Локальные переменные для математики берем строго из сессии
+dau = st.session_state["dau_val"]
+mau = st.session_state["mau_val"]
+ccu = st.session_state["ccu_val"]
 sticky_factor_pct = st.session_state["sticky_factor"]
 session_time = st.session_state["session_time"]
 conv_pct = st.session_state["conv"]
