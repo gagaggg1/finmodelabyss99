@@ -5,11 +5,23 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Abyss 99 Advanced Financial Model", layout="wide")
 
 st.title("⚓ Расширенная бизнес-модель: «99 Ночей в Бездне»")
-st.write("Профессиональный калькулятор доходности с детальным расчетом Premium Payouts и дублированием в USD и Robux.")
+st.write("Профессиональный калькулятор доходности с сохранением состояния всех переменных при переключении режимов.")
 
 # Фиксированные константы
 ROBLOX_TAX = 0.30       # Комиссия платформы Roblox
 INVESTMENT = 4500       # Стартовый капитал инвестора
+
+# Инициализация session_state для сохранения прогресса, если переменные еще не созданы
+if "ccu" not in st.session_state: st.session_state.ccu = 1500
+if "mau" not in st.session_state: st.session_state.mau = 250000
+if "conv" not in st.session_state: st.session_state.conv = 2.0
+if "arppu" not in st.session_state: st.session_state.arppu = 250
+if "devex_rate" not in st.session_state: st.session_state.devex_rate = 0.0035
+if "reinvest_rate" not in st.session_state: st.session_state.reinvest_rate = 15
+if "tax_rate" not in st.session_state: st.session_state.tax_rate = 6
+if "share" not in st.session_state: st.session_state.share = 35
+if "session_time" not in st.session_state: st.session_state.session_time = 35
+if "premium_ratio" not in st.session_state: st.session_state.premium_ratio = 2.5
 
 # Боковая панель управления
 st.sidebar.header("🎛️ Настройка переменных")
@@ -17,36 +29,44 @@ input_mode = st.sidebar.radio("Режим ввода данных:", ("Полз�
 
 st.sidebar.markdown("---")
 
+# Отрисовка интерфейса в зависимости от режима, но с привязкой к общему хранилищу памяти
 if input_mode == "Ползунки":
-    ccu = st.sidebar.slider("Средний онлайн (CCU):", min_value=0, max_value=30000, value=1500, step=100)
-    mau = st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=5000000, value=250000, step=10000)
-    conv = st.sidebar.slider("Конверсия в донат (%):", min_value=0.0, max_value=10.0, value=2.0, step=0.1, format="%.1f") / 100.0
-    arppu = st.sidebar.slider("Средний чек донатера (Robux):", min_value=10, max_value=2000, value=250, step=10)
-    devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.0100, value=0.0035, step=0.0001, format="%.4f")
+    ccu = st.sidebar.slider("Средний онлайн (CCU):", min_value=0, max_value=30000, key="ccu", step=100)
+    mau = st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=5000000, key="mau", step=10000)
+    conv_pct = st.sidebar.slider("Конверсия в донат (%):", min_value=0.0, max_value=10.0, key="conv", step=0.1, format="%.1f")
+    arppu = st.sidebar.slider("Средний чек донатера (Robux):", min_value=10, max_value=2000, key="arppu", step=10)
+    devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.0100, key="devex_rate", step=0.0001, format="%.4f")
     
     st.sidebar.markdown("### 🕒 Вовлеченность (Premium Payouts)")
-    session_time = st.sidebar.slider("Длина сессии (минут):", min_value=5, max_value=120, value=35, step=5)
-    premium_ratio = st.sidebar.slider("Доля Premium игроков (%):", min_value=0.5, max_value=10.0, value=2.5, step=0.1, format="%.1f") / 100.0
+    session_time = st.sidebar.slider("Длина сессии (минут):", min_value=5, max_value=120, key="session_time", step=5)
+    premium_ratio_pct = st.sidebar.slider("Доля Premium игроков (%):", min_value=0.5, max_value=10.0, key="premium_ratio", step=0.1, format="%.1f")
     
     st.sidebar.markdown("### 📈 Экономика и Распределение")
-    reinvest_rate = st.sidebar.slider("Фонд развития игры (% от прибыли):", min_value=0, max_value=50, value=15, step=5) / 100.0
-    tax_rate = st.sidebar.slider("Налог на вывод денег (%):", min_value=0, max_value=20, value=6, step=1) / 100.0
-    share = st.sidebar.slider("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=35, step=5) / 100.0
+    reinvest_rate_pct = st.sidebar.slider("Фонд развития игры (% от прибыли):", min_value=0, max_value=50, key="reinvest_rate", step=5)
+    tax_rate_pct = st.sidebar.slider("Налог на вывод денег (%):", min_value=0, max_value=20, key="tax_rate", step=1)
+    share_pct = st.sidebar.slider("Доля инвестора после ROI (%):", min_value=0, max_value=100, key="share", step=5)
 else:
-    ccu = st.sidebar.number_input("Средний онлайн (CCU):", min_value=0, max_value=100000, value=1500, step=100)
-    mau = st.sidebar.number_input("Игроков в месяц (MAU):", min_value=0, max_value=50000000, value=250000, step=10000)
-    conv = st.sidebar.number_input("Конверсия в донат (%):", min_value=0.0, max_value=100.0, value=2.0, step=0.1, format="%.1f") / 100.0
-    arppu = st.sidebar.number_input("Средний чек донатера (Robux):", min_value=0, max_value=100000, value=250, step=10)
-    devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.0100, value=0.0035, step=0.0001, format="%.4f")
+    ccu = st.sidebar.number_input("Средний онлайн (CCU):", min_value=0, max_value=100000, key="ccu", step=100)
+    mau = st.sidebar.number_input("Игроков в месяц (MAU):", min_value=0, max_value=50000000, key="mau", step=10000)
+    conv_pct = st.sidebar.number_input("Конверсия в донат (%):", min_value=0.0, max_value=100.0, key="conv", step=0.1, format="%.1f")
+    arppu = st.sidebar.number_input("Средний чек донатера (Robux):", min_value=0, max_value=100000, key="arppu", step=10)
+    devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.1000, key="devex_rate", step=0.0001, format="%.4f")
     
     st.sidebar.markdown("### 🕒 Вовлеченность (Premium Payouts)")
-    session_time = st.sidebar.number_input("Длина сессии (минут):", min_value=1, max_value=240, value=35, step=5)
-    premium_ratio = st.sidebar.number_input("Доля Premium игроков (%):", min_value=0.0, max_value=100.0, value=2.5, step=0.1, format="%.1f") / 100.0
+    session_time = st.sidebar.number_input("Длина сессии (минут):", min_value=1, max_value=240, key="session_time", step=5)
+    premium_ratio_pct = st.sidebar.number_input("Доля Premium игроков (%):", min_value=0.0, max_value=100.0, key="premium_ratio", step=0.1, format="%.1f")
 
     st.sidebar.markdown("### 📈 Экономика и Распределение")
-    reinvest_rate = st.sidebar.number_input("Фонд развития игры (% от прибыли):", min_value=0, max_value=100, value=15, step=5) / 100.0
-    tax_rate = st.sidebar.number_input("Налог на вывод денег (%):", min_value=0, max_value=100, value=6, step=1) / 100.0
-    share = st.sidebar.number_input("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=35, step=5) / 100.0
+    reinvest_rate_pct = st.sidebar.number_input("Фонд развития игры (% от прибыли):", min_value=0, max_value=100, key="reinvest_rate", step=5)
+    tax_rate_pct = st.sidebar.number_input("Налог на вывод денег (%):", min_value=0, max_value=100, key="tax_rate", step=1)
+    share_pct = st.sidebar.number_input("Доля инвестора после ROI (%):", min_value=0, max_value=100, key="share", step=5)
+
+# Переводим проценты в доли для математических расчетов
+conv = conv_pct / 100.0
+premium_ratio = premium_ratio_pct / 100.0
+reinvest_rate = reinvest_rate_pct / 100.0
+tax_rate = tax_rate_pct / 100.0
+share = share_pct / 100.0
 
 # --- РАСЧЕТЫ ЭКОНОМИКИ ---
 
@@ -59,7 +79,6 @@ gross_robux_donates = paying_users * arppu
 net_usd_donates = (gross_robux_donates * (1 - ROBLOX_TAX)) * devex_rate
 
 # 2. Динамический расчет Premium Payouts 
-# Базовая ставка завязана на CCU, время сессии (относительно эталона в 30 мин) и процент премиумов (относительно базовых 2%)
 premium_bonus_usd = ccu * (session_time / 30.0) * (premium_ratio / 0.02)
 total_gross_usd = net_usd_donates + premium_bonus_usd
 total_gross_robux = usd_to_robux(total_gross_usd, devex_rate)
