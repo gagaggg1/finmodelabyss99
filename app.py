@@ -1,13 +1,14 @@
 import streamlit as st
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Настройки веб-страницы
-st.set_page_config(page_title="Abyss 99 Business Model", layout="wide")
+st.set_page_config(page_title="Abyss 99 Business Model Pro", layout="wide")
 
 st.title("🐙 Бизнес-модель: «99 Ночей в Бездне»")
-st.write("Профессиональный расчет доходности. Полная двусторонняя синхронизация ползунков и ручного ввода в реальном времени.")
+st.write("Профессиональный расчет доходности. Полная двусторонняя синхронизация параметров аудитории (DAU, MAU, CCU).")
 
-# Границы для ползунков (вынесли в константы для безопасности)
+# Границы для ползунков
 MIN_DAU, MAX_DAU = 1000, 5000000
 MIN_MAU, MAX_MAU = 10000, 50000000
 MIN_CCU, MAX_CCU = 10, 100000
@@ -34,21 +35,24 @@ if "share" not in st.session_state: st.session_state["share"] = 35
 
 # 2. Математические колбэки с предохранителями от вылета за лимиты
 def sync_dau():
-    sticky_calc = st.session_state["dau_val"] / (st.session_state["sticky_factor"] / 100.0) if st.session_state["sticky_factor"] > 0 else 0
+    st.session_state["dau"] = st.session_state["dau_val"]
+    sticky_calc = st.session_state["dau"] / (st.session_state["sticky_factor"] / 100.0) if st.session_state["sticky_factor"] > 0 else 0
     st.session_state["mau_val"] = max(MIN_MAU, min(int(sticky_calc), MAX_MAU))
     
-    ccu_calc = (st.session_state["dau_val"] * st.session_state["session_time"]) / 1440
+    ccu_calc = (st.session_state["dau"] * st.session_state["session_time"]) / 1440
     st.session_state["ccu_val"] = max(MIN_CCU, min(int(ccu_calc), MAX_CCU))
 
 def sync_mau():
-    dau_calc = st.session_state["mau_val"] * (st.session_state["sticky_factor"] / 100.0)
+    st.session_state["mau"] = st.session_state["mau_val"]
+    dau_calc = st.session_state["mau"] * (st.session_state["sticky_factor"] / 100.0)
     st.session_state["dau_val"] = max(MIN_DAU, min(int(dau_calc), MAX_DAU))
     
     ccu_calc = (st.session_state["dau_val"] * st.session_state["session_time"]) / 1440
     st.session_state["ccu_val"] = max(MIN_CCU, min(int(ccu_calc), MAX_CCU))
 
 def sync_ccu():
-    dau_calc = (st.session_state["ccu_val"] * 1440) / st.session_state["session_time"] if st.session_state["session_time"] > 0 else 0
+    st.session_state["ccu"] = st.session_state["ccu_val"]
+    dau_calc = (st.session_state["ccu"] * 1440) / st.session_state["session_time"] if st.session_state["session_time"] > 0 else 0
     st.session_state["dau_val"] = max(MIN_DAU, min(int(dau_calc), MAX_DAU))
     
     sticky_calc = st.session_state["dau_val"] / (st.session_state["sticky_factor"] / 100.0) if st.session_state["sticky_factor"] > 0 else 0
@@ -67,7 +71,7 @@ st.sidebar.header("🎛️ Настройка переменных")
 input_mode = st.sidebar.radio("Режим ввода данных:", ("Ползунки", "Ввод вручную"))
 st.sidebar.markdown("---")
 
-# 3. Отрисовка интерфейса
+# 3. Отрисовка интерфейса (связка идет только через key, без жесткого value)
 if input_mode == "Ползунки":
     st.sidebar.markdown("### 👥 Аудитория и Трафик")
     st.sidebar.slider("Игроков в день (DAU):", min_value=MIN_DAU, max_value=MAX_DAU, step=1000, key="dau_val", on_change=sync_dau)
@@ -167,7 +171,7 @@ payout_step = investor_payout_usd if share > 0 else total_clear_profit_usd
 roi_months = INVESTMENT / payout_step if payout_step > 0 else 99
 
 # --- ИНТЕРФЕЙС И ВЫВОД НА ЭКРАН ---
-st.subheader("🖥️ Текущее состояние серверов и аудитории")
+st.subheader("🖥️ Динамические показатели аудитории")
 sys_col1, sys_col2, sys_col3 = st.columns(3)
 sys_col1.metric("Активный онлайн (CCU)", f"{ccu:,} чел.", help="Средний онлайн плейса.")
 sys_col2.metric("Месячная аудитория (MAU)", f"{mau:,} чел.", help="Уникальные пользователи за месяц.")
@@ -185,7 +189,7 @@ col5.metric("Чистый доход инвестора", f"${investor_payout_us
 
 st.markdown("---")
 
-st.subheader("📊 Ключевые продуктовые метрики")
+st.subheader("📊 Продуктовые метрики")
 m_col1, m_col2, m_col3 = st.columns(3)
 m_col1.metric("Ценность игрока (LTV)", f"${ltv_usd:.4f}", f"R$ {ltv_robux:.2f}")
 m_col2.metric("Доход с активного в день (ARPDAU)", f"${arpdau_usd:.4f}", f"R$ {arpdau_robux:.2f}")
@@ -197,17 +201,76 @@ else:
 
 st.markdown("---")
 
-# График окупаемости
-months = ['М1 (Разработка)', 'М2 (Разработка)', 'М3 (Тест)', 'М4 (Релиз)', 'М5', 'М6']
-balance = [-4500, -4500, -4100, -4100 + payout_step, -4100 + (payout_step * 2), -4100 + (payout_step * 3)]
+# --- ОТРИСОВКА НОВОГО КЛАССНОГО ГРАФИКА ---
 
-fig, ax = plt.subplots(figsize=(10, 3.2))
-ax.axhline(0, color='gray', linewidth=0.8, linestyle='--')
-ax.plot(months, balance, marker='o', color='#00e676', linewidth=2.5, label="Баланс")
-ax.fill_between(months, balance, 0, where=[b<0 for b in balance], color='#ff1744', alpha=0.15)
-ax.fill_between(months, balance, 0, where=[b>=0 for b in balance], color='#00e676', alpha=0.15)
-ax.set_ylabel("Капитал ($)")
-ax.set_title("График окупаемости стартовых инвестиций")
-ax.grid(True, alpha=0.2)
+st.subheader("🦑 График окупаемости инвестиций (Возврат капитала)")
 
+# Настройка эстетики в стиле Abyss/Киберпанк
+plt.style.use('dark_background') # Темный фон - основа стиля
+fig, ax = plt.subplots(figsize=(12, 4.5), dpi=120)
+
+# Генерируем данные (6 месяцев)
+months_full = ['M1 (Dev)', 'M2 (Dev)', 'M3 (Test)', 'M4 (Релиз)', 'M5', 'M6']
+months_numeric = np.array([1, 2, 3, 4, 5, 6])
+# Тестовые инвестиции вычитаются в M3, доход начинается в M4
+balance = np.array([-4500, -4500, -4100, -4100 + payout_step, -4100 + (payout_step * 2), -4100 + (payout_step * 3)])
+
+# 1. Основная НЕОНОВАЯ ЛИНИЯ капитала (Зеленый свет)
+neongreen = '#00ff41' # Яркий, кибернетический зеленый
+line, = ax.plot(months_numeric, balance, marker='o', color=neongreen, linewidth=3, markersize=8, label="Текущий капитал", zorder=5)
+
+# Добавляем эффект неонового свечения вокруг линии (дублируем линию с размытием)
+neongreen_glow = '#00ff4110' # То же самое, но очень прозрачное
+for n in range(1, 10):
+    ax.plot(months_numeric, balance, marker='o', color=neongreen_glow, linewidth=3 + (n*1.5), markersize=8+(n), zorder=4)
+
+# 2. AREA CHART (Заливка областей с градиентом)
+# Зона Убытка (Красный градиент)
+red_zone = '#ff1744'
+ax.fill_between(months_numeric, balance, 0, where=[b<0 for b in balance], interpolate=True, color=red_zone, alpha=0.15, zorder=2)
+
+# Зона Прибыли (Зеленый градиент)
+ax.fill_between(months_numeric, balance, 0, where=[b>=0 for b in balance], interpolate=True, color=neongreen, alpha=0.15, zorder=2)
+
+# 3. Детализация оси и сетки (Легкая, не отвлекающая)
+# Линия нуля (серая, пунктирная)
+ax.axhline(0, color='#444444', linewidth=1, linestyle='--', zorder=3)
+
+# Сетка (очень прозрачная)
+ax.grid(True, axis='y', color='#222222', linestyle='-', linewidth=0.5, alpha=0.5, zorder=1)
+ax.grid(False, axis='x')
+
+# 4. Настройка подписей и осей
+plt.xticks(months_numeric, months_full, color='#888888', fontsize=10)
+plt.yticks(color='#888888', fontsize=9)
+ax.set_ylabel("Капитал проекта ($)", color='#aaaaaa', fontsize=11, labelpad=10)
+#ax.set_title("🦑 Динамика возврата стартовых $4,500 инвестиций", color='#ffffff', fontsize=14, pad=15)
+
+# Убираем лишние рамки
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.spines['left'].set_visible(False)
+ax.spines['bottom'].set_color('#333333')
+
+# 5. Выделяем точку ОКУПАЕМОСТИ
+if payout_step > 0 and not all(b < 0 for b in balance):
+    # Находим индекс первой точки >= 0
+    breakeven_idx = np.where(balance >= 0)[0]
+    if len(breakeven_idx) > 0:
+        idx = breakeven_idx[0]
+        # Ставим большую светящуюся точку
+        ax.scatter(months_numeric[idx], balance[idx], color=neongreen, s=200, marker='H', edgecolor='#ffffff', linewidth=1.5, zorder=10)
+        # Добавляем свечение
+        for n in range(1, 15):
+            ax.scatter(months_numeric[idx], balance[idx], color=neongreen_glow, s=200 + (n*15), marker='H', zorder=9)
+        
+        # Текстовая подпись над точкой
+        p_mon = months_numeric[idx]
+        p_bal = balance[idx]
+        ax.annotate('ROI ПОЛУЧЕН! 🎉', xy=(p_mon, p_bal), xytext=(p_mon, p_bal + 500),
+                    textcoords='data', color='#ffffff', fontsize=11, fontweight='bold',
+                    arrowprops=dict(arrowstyle='-', color='#aaaaaa', connectionstyle="arc3,rad=-0.1"),
+                    horizontalalignment='center', zorder=11)
+
+# Вывод графика в Streamlit
 st.pyplot(fig)
