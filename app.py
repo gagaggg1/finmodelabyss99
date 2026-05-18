@@ -7,6 +7,11 @@ st.set_page_config(page_title="Abyss 99 Business Model", layout="wide")
 st.title("🐙 Бизнес-модель: «99 Ночей в Бездне»")
 st.write("Профессиональный расчет доходности. Полная двусторонняя синхронизация ползунков и ручного ввода в реальном времени.")
 
+# Границы для ползунков (вынесли в константы для безопасности)
+MIN_DAU, MAX_DAU = 1000, 5000000
+MIN_MAU, MAX_MAU = 10000, 50000000
+MIN_CCU, MAX_CCU = 10, 100000
+
 # Фиксированные константы
 ROBLOX_TAX = 0.30       # Комиссия платформы Roblox
 INVESTMENT = 4500       # Стартовый капитал инвестора
@@ -27,36 +32,47 @@ if "marketing_rate" not in st.session_state: st.session_state["marketing_rate"] 
 if "tax_rate" not in st.session_state: st.session_state["tax_rate"] = 6
 if "share" not in st.session_state: st.session_state["share"] = 35
 
-# 2. Математические колбэки (изменение ключа напрямую двигает ползунки)
+# 2. Математические колбэки с предохранителями от вылета за лимиты
 def sync_dau():
     sticky_calc = st.session_state["dau_val"] / (st.session_state["sticky_factor"] / 100.0) if st.session_state["sticky_factor"] > 0 else 0
-    st.session_state["mau_val"] = int(sticky_calc)
-    st.session_state["ccu_val"] = int((st.session_state["dau_val"] * st.session_state["session_time"]) / 1440)
+    st.session_state["mau_val"] = max(MIN_MAU, min(int(sticky_calc), MAX_MAU))
+    
+    ccu_calc = (st.session_state["dau_val"] * st.session_state["session_time"]) / 1440
+    st.session_state["ccu_val"] = max(MIN_CCU, min(int(ccu_calc), MAX_CCU))
 
 def sync_mau():
-    st.session_state["dau_val"] = int(st.session_state["mau_val"] * (st.session_state["sticky_factor"] / 100.0))
-    st.session_state["ccu_val"] = int((st.session_state["dau_val"] * st.session_state["session_time"]) / 1440)
+    dau_calc = st.session_state["mau_val"] * (st.session_state["sticky_factor"] / 100.0)
+    st.session_state["dau_val"] = max(MIN_DAU, min(int(dau_calc), MAX_DAU))
+    
+    ccu_calc = (st.session_state["dau_val"] * st.session_state["session_time"]) / 1440
+    st.session_state["ccu_val"] = max(MIN_CCU, min(int(ccu_calc), MAX_CCU))
 
 def sync_ccu():
-    st.session_state["dau_val"] = int((st.session_state["ccu_val"] * 1440) / st.session_state["session_time"]) if st.session_state["session_time"] > 0 else 0
-    st.session_state["mau_val"] = int(st.session_state["dau_val"] / (st.session_state["sticky_factor"] / 100.0)) if st.session_state["sticky_factor"] > 0 else 0
+    dau_calc = (st.session_state["ccu_val"] * 1440) / st.session_state["session_time"] if st.session_state["session_time"] > 0 else 0
+    st.session_state["dau_val"] = max(MIN_DAU, min(int(dau_calc), MAX_DAU))
+    
+    sticky_calc = st.session_state["dau_val"] / (st.session_state["sticky_factor"] / 100.0) if st.session_state["sticky_factor"] > 0 else 0
+    st.session_state["mau_val"] = max(MIN_MAU, min(int(sticky_calc), MAX_MAU))
 
 def sync_metrics():
+    # Если изменилась липучесть или время сессии — адаптируем MAU и CCU под текущий DAU
     sticky_calc = st.session_state["dau_val"] / (st.session_state["sticky_factor"] / 100.0) if st.session_state["sticky_factor"] > 0 else 0
-    st.session_state["mau_val"] = int(sticky_calc)
-    st.session_state["ccu_val"] = int((st.session_state["dau_val"] * st.session_state["session_time"]) / 1440)
+    st.session_state["mau_val"] = max(MIN_MAU, min(int(sticky_calc), MAX_MAU))
+    
+    ccu_calc = (st.session_state["dau_val"] * st.session_state["session_time"]) / 1440
+    st.session_state["ccu_val"] = max(MIN_CCU, min(int(ccu_calc), MAX_CCU))
 
 # Боковая панель управления
 st.sidebar.header("🎛️ Настройка переменных")
 input_mode = st.sidebar.radio("Режим ввода данных:", ("Ползунки", "Ввод вручную"))
 st.sidebar.markdown("---")
 
-# 3. Отрисовка интерфейса (связка идет только через key, без жесткого value)
+# 3. Отрисовка интерфейса
 if input_mode == "Ползунки":
     st.sidebar.markdown("### 👥 Аудитория и Трафик")
-    st.sidebar.slider("Игроков в день (DAU):", min_value=1000, max_value=5000000, step=1000, key="dau_val", on_change=sync_dau)
-    st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=50000000, step=10000, key="mau_val", on_change=sync_mau)
-    st.sidebar.slider("Средний онлайн (CCU):", min_value=10, max_value=100000, step=50, key="ccu_val", on_change=sync_ccu)
+    st.sidebar.slider("Игроков в день (DAU):", min_value=MIN_DAU, max_value=MAX_DAU, step=1000, key="dau_val", on_change=sync_dau)
+    st.sidebar.slider("Игроков в месяц (MAU):", min_value=MIN_MAU, max_value=MAX_MAU, step=10000, key="mau_val", on_change=sync_mau)
+    st.sidebar.slider("Средний онлайн (CCU):", min_value=MIN_CCU, max_value=MAX_CCU, step=50, key="ccu_val", on_change=sync_ccu)
     
     st.sidebar.markdown("### 🕒 Вовлеченность и Удержание")
     st.sidebar.slider("Липучесть игры (Sticky Factor %):", min_value=5.0, max_value=30.0, step=0.5, format="%.1f", key="sticky_factor", on_change=sync_metrics)
@@ -73,9 +89,9 @@ if input_mode == "Ползунки":
     st.sidebar.slider("Доля инвестора после ROI (%):", min_value=0, max_value=100, step=5, key="share")
 else:
     st.sidebar.markdown("### 👥 Аудитория и Трафик")
-    st.sidebar.number_input("Игроков в день (DAU):", min_value=0, max_value=5000000, step=1000, key="dau_val", on_change=sync_dau)
-    st.sidebar.number_input("Игроков в месяц (MAU):", min_value=0, max_value=50000000, step=10000, key="mau_val", on_change=sync_mau)
-    st.sidebar.number_input("Средний онлайн (CCU):", min_value=0, max_value=100000, step=100, key="ccu_val", on_change=sync_ccu)
+    st.sidebar.number_input("Игроков в день (DAU):", min_value=0, max_value=MAX_DAU, step=1000, key="dau_val", on_change=sync_dau)
+    st.sidebar.number_input("Игроков в месяц (MAU):", min_value=0, max_value=MAX_MAU, step=10000, key="mau_val", on_change=sync_mau)
+    st.sidebar.number_input("Средний онлайн (CCU):", min_value=0, max_value=MAX_CCU, step=100, key="ccu_val", on_change=sync_ccu)
     
     st.sidebar.markdown("### 🕒 Вовлеченность и Удержание")
     st.sidebar.number_input("Липучесть игры (Sticky Factor %):", min_value=1.0, max_value=100.0, step=0.5, format="%.1f", key="sticky_factor", on_change=sync_metrics)
@@ -91,7 +107,7 @@ else:
     st.sidebar.number_input("Налог на вывод денег (%):", min_value=0, max_value=100, step=1, key="tax_rate")
     st.sidebar.number_input("Доля инвестора после ROI (%):", min_value=0, max_value=100, step=5, key="share")
 
-# Локальные переменные для математики берем строго из сессии
+# Извлекаем финальные значения
 dau = st.session_state["dau_val"]
 mau = st.session_state["mau_val"]
 ccu = st.session_state["ccu_val"]
@@ -106,7 +122,6 @@ marketing_rate_pct = st.session_state["marketing_rate"]
 tax_rate_pct = st.session_state["tax_rate"]
 share_pct = st.session_state["share"]
 
-# Конвертация процентов для финальной математики доходов
 conv = float(conv_pct) / 100.0
 premium_ratio = float(premium_ratio_pct) / 100.0
 reinvest_rate = float(reinvest_rate_pct) / 100.0
@@ -141,7 +156,6 @@ total_clear_profit_robux = usd_to_robux(total_clear_profit_usd, devex_rate)
 investor_payout_usd = total_clear_profit_usd * share
 investor_payout_robux = usd_to_robux(investor_payout_usd, devex_rate)
 
-# Продуктовые метрики
 arpu_usd = total_gross_usd / mau if mau > 0 else 0
 arpu_robux = total_gross_robux / mau if mau > 0 else 0
 ltv_usd = arpu_usd * 1.5  
@@ -153,7 +167,6 @@ payout_step = investor_payout_usd if share > 0 else total_clear_profit_usd
 roi_months = INVESTMENT / payout_step if payout_step > 0 else 99
 
 # --- ИНТЕРФЕЙС И ВЫВОД НА ЭКРАН ---
-
 st.subheader("🖥️ Текущее состояние серверов и аудитории")
 sys_col1, sys_col2, sys_col3 = st.columns(3)
 sys_col1.metric("Активный онлайн (CCU)", f"{ccu:,} чел.", help="Средний онлайн плейса.")
