@@ -5,23 +5,23 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Abyss 99 Advanced Financial Model", layout="wide")
 
 st.title("⚓ Расширенная бизнес-модель: «99 Ночей в Бездне»")
-st.write("Профессиональный калькулятор доходности с сохранением состояния всех переменных при переключении режимов.")
+st.write("Профессиональный калькулятор доходности с защитой от сброса данных.")
 
 # Фиксированные константы
 ROBLOX_TAX = 0.30       # Комиссия платформы Roblox
 INVESTMENT = 4500       # Стартовый капитал инвестора
 
-# Инициализация session_state для сохранения прогресса, если переменные еще не созданы
-if "ccu" not in st.session_state: st.session_state.ccu = 1500
-if "mau" not in st.session_state: st.session_state.mau = 250000
-if "conv" not in st.session_state: st.session_state.conv = 2.0
-if "arppu" not in st.session_state: st.session_state.arppu = 250
-if "devex_rate" not in st.session_state: st.session_state.devex_rate = 0.0035
+# Строгая инициализация session_state с базовыми рабочими значениями (защита от 0)
+if "ccu" not in st.session_state or st.session_state.ccu == 0: st.session_state.ccu = 1500
+if "mau" not in st.session_state or st.session_state.mau == 0: st.session_state.mau = 250000
+if "conv" not in st.session_state or st.session_state.conv == 0.0: st.session_state.conv = 2.0
+if "arppu" not in st.session_state or st.session_state.arppu == 0: st.session_state.arppu = 250
+if "devex_rate" not in st.session_state or st.session_state.devex_rate == 0.0: st.session_state.devex_rate = 0.0035
 if "reinvest_rate" not in st.session_state: st.session_state.reinvest_rate = 15
 if "tax_rate" not in st.session_state: st.session_state.tax_rate = 6
 if "share" not in st.session_state: st.session_state.share = 35
-if "session_time" not in st.session_state: st.session_state.session_time = 35
-if "premium_ratio" not in st.session_state: st.session_state.premium_ratio = 2.5
+if "session_time" not in st.session_state or st.session_state.session_time == 0: st.session_state.session_time = 35
+if "premium_ratio" not in st.session_state or st.session_state.premium_ratio == 0.0: st.session_state.premium_ratio = 2.5
 
 # Боковая панель управления
 st.sidebar.header("🎛️ Настройка переменных")
@@ -29,7 +29,7 @@ input_mode = st.sidebar.radio("Режим ввода данных:", ("Полз�
 
 st.sidebar.markdown("---")
 
-# Отрисовка интерфейса в зависимости от режима, но с привязкой к общему хранилищу памяти
+# Отрисовка интерфейса с явным приведением типов
 if input_mode == "Ползунки":
     ccu = st.sidebar.slider("Средний онлайн (CCU):", min_value=0, max_value=30000, key="ccu", step=100)
     mau = st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=5000000, key="mau", step=10000)
@@ -61,24 +61,24 @@ else:
     tax_rate_pct = st.sidebar.number_input("Налог на вывод денег (%):", min_value=0, max_value=100, key="tax_rate", step=1)
     share_pct = st.sidebar.number_input("Доля инвестора после ROI (%):", min_value=0, max_value=100, key="share", step=5)
 
-# Переводим проценты в доли для математических расчетов
-conv = conv_pct / 100.0
-premium_ratio = premium_ratio_pct / 100.0
-reinvest_rate = reinvest_rate_pct / 100.0
-tax_rate = tax_rate_pct / 100.0
-share = share_pct / 100.0
+# Конвертация процентов для математики
+conv = float(conv_pct) / 100.0
+premium_ratio = float(premium_ratio_pct) / 100.0
+reinvest_rate = float(reinvest_rate_pct) / 100.0
+tax_rate = float(tax_rate_pct) / 100.0
+share = float(share_pct) / 100.0
 
 # --- РАСЧЕТЫ ЭКОНОМИКИ ---
 
 def usd_to_robux(usd, rate):
     return usd / rate if rate > 0 else 0
 
-# 1. Прямые донаты (чистые в USD)
+# 1. Прямые донаты
 paying_users = mau * conv
 gross_robux_donates = paying_users * arppu
-net_usd_donates = (gross_robux_donates * (1 - ROBLOX_TAX)) * devex_rate
+net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# 2. Динамический расчет Premium Payouts 
+# 2. Premium Payouts
 premium_bonus_usd = ccu * (session_time / 30.0) * (premium_ratio / 0.02)
 total_gross_usd = net_usd_donates + premium_bonus_usd
 total_gross_robux = usd_to_robux(total_gross_usd, devex_rate)
