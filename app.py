@@ -54,9 +54,9 @@ st.sidebar.markdown("---")
 # 3. Отрисовка интерфейса (связка идет только через key, без жесткого value)
 if input_mode == "Ползунки":
     st.sidebar.markdown("### 👥 Аудитория и Трафик")
-    st.sidebar.slider("Игроков в день (DAU):", min_value=1000, max_value=500000, step=1000, key="dau_val", on_change=sync_dau)
-    st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=5000000, step=10000, key="mau_val", on_change=sync_mau)
-    st.sidebar.slider("Средний онлайн (CCU):", min_value=10, max_value=30000, step=50, key="ccu_val", on_change=sync_ccu)
+    st.sidebar.slider("Игроков в день (DAU):", min_value=1000, max_value=5000000, step=1000, key="dau_val", on_change=sync_dau)
+    st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=50000000, step=10000, key="mau_val", on_change=sync_mau)
+    st.sidebar.slider("Средний онлайн (CCU):", min_value=10, max_value=100000, step=50, key="ccu_val", on_change=sync_ccu)
     
     st.sidebar.markdown("### 🕒 Вовлеченность и Удержание")
     st.sidebar.slider("Липучесть игры (Sticky Factor %):", min_value=5.0, max_value=30.0, step=0.5, format="%.1f", key="sticky_factor", on_change=sync_metrics)
