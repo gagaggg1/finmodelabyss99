@@ -27,33 +27,37 @@ if "marketing_rate" not in st.session_state: st.session_state["marketing_rate"] 
 if "tax_rate" not in st.session_state: st.session_state["tax_rate"] = 6
 if "share" not in st.session_state: st.session_state["share"] = 35
 
-# 2. Математические колбэки для пересчета зависимостей при вводе
+# 2. Математические колбэки для пересчета зависимостей + принудительный реран экрана
 def update_from_dau():
-    sticky_calc = st.session_state["dau_val"] / (st.session_state["sticky_factor"] / 100.0) if st.session_state["sticky_factor"] > 0 else 0
-    st.session_state["mau"] = int(sticky_calc)
-    st.session_state["ccu"] = int((st.session_state["dau_val"] * st.session_state["session_time"]) / 1440)
     st.session_state["dau"] = st.session_state["dau_val"]
+    sticky_calc = st.session_state["dau"] / (st.session_state["sticky_factor"] / 100.0) if st.session_state["sticky_factor"] > 0 else 0
+    st.session_state["mau"] = int(sticky_calc)
+    st.session_state["ccu"] = int((st.session_state["dau"] * st.session_state["session_time"]) / 1440)
+    st.rerun()
 
 def update_from_mau():
-    st.session_state["dau"] = int(st.session_state["mau_val"] * (st.session_state["sticky_factor"] / 100.0))
-    st.session_state["ccu"] = int((st.session_state["dau"] * st.session_state["session_time"]) / 1440)
     st.session_state["mau"] = st.session_state["mau_val"]
+    st.session_state["dau"] = int(st.session_state["mau"] * (st.session_state["sticky_factor"] / 100.0))
+    st.session_state["ccu"] = int((st.session_state["dau"] * st.session_state["session_time"]) / 1440)
+    st.rerun()
 
 def update_from_ccu():
-    st.session_state["dau"] = int((st.session_state["ccu_val"] * 1440) / st.session_state["session_time"]) if st.session_state["session_time"] > 0 else 0
-    st.session_state["mau"] = int(st.session_state["dau"] / (st.session_state["sticky_factor"] / 100.0)) if st.session_state["sticky_factor"] > 0 else 0
     st.session_state["ccu"] = st.session_state["ccu_val"]
+    st.session_state["dau"] = int((st.session_state["ccu"] * 1440) / st.session_state["session_time"]) if st.session_state["session_time"] > 0 else 0
+    st.session_state["mau"] = int(st.session_state["dau"] / (st.session_state["sticky_factor"] / 100.0)) if st.session_state["sticky_factor"] > 0 else 0
+    st.rerun()
 
 def update_from_metrics():
     st.session_state["mau"] = int(st.session_state["dau"] / (st.session_state["sticky_factor"] / 100.0)) if st.session_state["sticky_factor"] > 0 else 0
     st.session_state["ccu"] = int((st.session_state["dau"] * st.session_state["session_time"]) / 1440)
+    st.rerun()
 
 # Боковая панель управления
 st.sidebar.header("🎛️ Настройка переменных")
 input_mode = st.sidebar.radio("Режим ввода данных:", ("Ползунки", "Ввод вручную"))
 st.sidebar.markdown("---")
 
-# 3. Отрисовка интерфейса с принудительным обновлением стейта
+# 3. Отрисовка интерфейса
 if input_mode == "Ползунки":
     st.sidebar.markdown("### 👥 Аудитория и Трафик")
     st.sidebar.slider("Игроков в день (DAU):", min_value=1000, max_value=500000, step=1000, key="dau_val", value=int(st.session_state["dau"]), on_change=update_from_dau)
@@ -147,7 +151,7 @@ investor_payout_robux = usd_to_robux(investor_payout_usd, devex_rate)
 arpu_usd = total_gross_usd / mau if mau > 0 else 0
 arpu_robux = total_gross_robux / mau if mau > 0 else 0
 ltv_usd = arpu_usd * 1.5  
-ltv_robux = arpu_robux * 1.5
+ltv_robux = arpu_robux * 1.2
 arpdau_usd = total_gross_usd / 30 / dau if dau > 0 else 0
 arpdau_robux = total_gross_robux / 30 / dau if dau > 0 else 0
 
