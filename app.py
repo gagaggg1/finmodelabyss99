@@ -5,21 +5,34 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Abyss 99 Financial Model", layout="wide")
 
 st.title("⚓ Финансовая модель: «99 Ночей в Бездне»")
-st.write("Интерактивный калькулятор. Управляйте ползунками или кликните дважды на число справа от них, чтобы ввести значение вручную.")
+st.write("Интерактивный калькулятор доходности игры в Roblox.")
 
 # Константы платформы Roblox
 ROBLOX_TAX = 0.30       # Фиксированная комиссия 30%
 INVESTMENT = 4500       # Сумма вложений инвестора
 
-# Боковая панель управления (Ползунки + ввод вручную при клике)
+# Боковая панель управления
 st.sidebar.header("🎛️ Настройка переменных")
 
-ccu = st.sidebar.slider("Средний онлайн (CCU):", min_value=0, max_value=30000, value=1500, step=100)
-mau = st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=5000000, value=250000, step=10000)
-conv = st.sidebar.slider("Конверсия в донат (%):", min_value=0.0, max_value=10.0, value=2.0, step=0.1, format="%.1f") / 100.0
-arppu = st.sidebar.slider("Средний чек (Robux):", min_value=10, max_value=2000, value=250, step=10)
-devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.0100, value=0.0035, step=0.0001, format="%.4f")
-share = st.sidebar.slider("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=35, step=5) / 100.0
+# Переключатель режима ввода
+input_mode = st.sidebar.radio("Режим ввода данных:", ("Ползунки", "Ввод вручную"))
+
+st.sidebar.markdown("---")
+
+if input_mode == "Ползунки":
+    ccu = st.sidebar.slider("Средний онлайн (CCU):", min_value=0, max_value=30000, value=1500, step=100)
+    mau = st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=5000000, value=250000, step=10000)
+    conv = st.sidebar.slider("Конверсия в донат (%):", min_value=0.0, max_value=10.0, value=2.0, step=0.1, format="%.1f") / 100.0
+    arppu = st.sidebar.slider("Средний чек (Robux):", min_value=10, max_value=2000, value=250, step=10)
+    devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.0100, value=0.0035, step=0.0001, format="%.4f")
+    share = st.sidebar.slider("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=35, step=5) / 100.0
+else:
+    ccu = st.sidebar.number_input("Средний онлайн (CCU):", min_value=0, max_value=100000, value=1500, step=100)
+    mau = st.sidebar.number_input("Игроков в месяц (MAU):", min_value=0, max_value=50000000, value=250000, step=10000)
+    conv = st.sidebar.number_input("Конверсия в донат (%):", min_value=0.0, max_value=100.0, value=2.0, step=0.1, format="%.1f") / 100.0
+    arppu = st.sidebar.number_input("Средний чек (Robux):", min_value=0, max_value=100000, value=250, step=10)
+    devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 Robux):", min_value=0.0, max_value=0.1, value=0.0035, step=0.0001, format="%.4f")
+    share = st.sidebar.number_input("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=35, step=5) / 100.0
 
 # 1. Расчет чистой прибыли с прямых донатов
 paying_users = mau * conv
