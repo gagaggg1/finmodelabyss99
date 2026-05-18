@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Abyss 99 Advanced Financial Model", layout="wide")
 
 st.title("⚓ Расширенная бизнес-модель: «99 Ночей в Бездне»")
-st.write("Профессиональный калькулятор доходности с автоматическим дублированием всех показателей в USD ($) и Robux (R$).")
+st.write("Профессиональный калькулятор доходности с детальным расчетом Premium Payouts и дублированием в USD и Robux.")
 
 # Фиксированные константы
 ROBLOX_TAX = 0.30       # Комиссия платформы Roblox
@@ -24,9 +24,13 @@ if input_mode == "Ползунки":
     arppu = st.sidebar.slider("Средний чек донатера (Robux):", min_value=10, max_value=2000, value=250, step=10)
     devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.0100, value=0.0035, step=0.0001, format="%.4f")
     
-    st.sidebar.markdown("### 📈 Экономика и Удержание")
+    st.sidebar.markdown("### 🕒 Вовлеченность (Premium Payouts)")
+    session_time = st.sidebar.slider("Длина сессии (минут):", min_value=5, max_value=120, value=35, step=5)
+    premium_ratio = st.sidebar.slider("Доля Premium игроков (%):", min_value=0.5, max_value=10.0, value=2.5, step=0.1, format="%.1f") / 100.0
+    
+    st.sidebar.markdown("### 📈 Экономика и Распределение")
     reinvest_rate = st.sidebar.slider("Фонд развития игры (% от прибыли):", min_value=0, max_value=50, value=15, step=5) / 100.0
-    tax_rate = st.sidebar.slider("Налог на вывод денег / физлицо (%):", min_value=0, max_value=20, value=6, step=1) / 100.0
+    tax_rate = st.sidebar.slider("Налог на вывод денег (%):", min_value=0, max_value=20, value=6, step=1) / 100.0
     share = st.sidebar.slider("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=35, step=5) / 100.0
 else:
     ccu = st.sidebar.number_input("Средний онлайн (CCU):", min_value=0, max_value=100000, value=1500, step=100)
@@ -35,28 +39,32 @@ else:
     arppu = st.sidebar.number_input("Средний чек донатера (Robux):", min_value=0, max_value=100000, value=250, step=10)
     devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.0100, value=0.0035, step=0.0001, format="%.4f")
     
-    st.sidebar.markdown("### 📈 Экономика и Удержание")
+    st.sidebar.markdown("### 🕒 Вовлеченность (Premium Payouts)")
+    session_time = st.sidebar.number_input("Длина сессии (минут):", min_value=1, max_value=240, value=35, step=5)
+    premium_ratio = st.sidebar.number_input("Доля Premium игроков (%):", min_value=0.0, max_value=100.0, value=2.5, step=0.1, format="%.1f") / 100.0
+
+    st.sidebar.markdown("### 📈 Экономика и Распределение")
     reinvest_rate = st.sidebar.number_input("Фонд развития игры (% от прибыли):", min_value=0, max_value=100, value=15, step=5) / 100.0
-    tax_rate = st.sidebar.number_input("Налог на вывод денег / физлицо (%):", min_value=0, max_value=100, value=6, step=1) / 100.0
+    tax_rate = st.sidebar.number_input("Налог на вывод денег (%):", min_value=0, max_value=100, value=6, step=1) / 100.0
     share = st.sidebar.number_input("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=35, step=5) / 100.0
 
 # --- РАСЧЕТЫ ЭКОНОМИКИ ---
 
-# Функция перевода USD в Robux по выбранному курсу DevEx
 def usd_to_robux(usd, rate):
     return usd / rate if rate > 0 else 0
 
-# 1. Грязный доход (Донаты + Premium Payouts)
+# 1. Прямые донаты (чистые в USD)
 paying_users = mau * conv
 gross_robux_donates = paying_users * arppu
 net_usd_donates = (gross_robux_donates * (1 - ROBLOX_TAX)) * devex_rate
 
-# Базовый Premium Payouts в USD, затем переводим в Robux эквивалент
-premium_bonus_usd = ccu * 1.0
+# 2. Динамический расчет Premium Payouts 
+# Базовая ставка завязана на CCU, время сессии (относительно эталона в 30 мин) и процент премиумов (относительно базовых 2%)
+premium_bonus_usd = ccu * (session_time / 30.0) * (premium_ratio / 0.02)
 total_gross_usd = net_usd_donates + premium_bonus_usd
 total_gross_robux = usd_to_robux(total_gross_usd, devex_rate)
 
-# 2. Удержание налогов и фонда развития
+# 3. Налоги и фонд развития
 tax_usd = total_gross_usd * tax_rate
 tax_robux = usd_to_robux(tax_usd, devex_rate)
 
@@ -66,22 +74,21 @@ reinvestment_robux = usd_to_robux(reinvestment_usd, devex_rate)
 total_clear_profit_usd = total_gross_usd - tax_usd - reinvestment_usd
 total_clear_profit_robux = usd_to_robux(total_clear_profit_usd, devex_rate)
 
-# 3. Выплаты инвестору
+# 4. Доля инвестора
 investor_payout_usd = total_clear_profit_usd * share
 investor_payout_robux = usd_to_robux(investor_payout_usd, devex_rate)
 
-# 4. Расчет продуктовых метрик плейса
+# 5. Метрики плейса
 arpu_usd = total_gross_usd / mau if mau > 0 else 0
 arpu_robux = total_gross_robux / mau if mau > 0 else 0
-
-ltv_usd = arpu_usd * 1.5  # Среднее время жизни игрока (1.5 месяца)
+ltv_usd = arpu_usd * 1.5  
 ltv_robux = arpu_robux * 1.5
 
-# Срок окупаемости (ROI)
+# Окупился ли инвестор
 payout_step = investor_payout_usd if share > 0 else total_clear_profit_usd
 roi_months = INVESTMENT / payout_step if payout_step > 0 else 99
 
-# --- ИНТЕРФЕЙС И ВЫВОД ДАННЫХ ---
+# --- ИНТЕРФЕЙС ---
 
 st.subheader("💰 Финансовые итоги проекта (в месяц)")
 col1, col2, col3, col4 = st.columns(4)
@@ -94,8 +101,8 @@ st.markdown("---")
 
 st.subheader("📊 Важнейшие продуктовые метрики плейса")
 m_col1, m_col2, m_col3 = st.columns(3)
-m_col1.metric("Доход со всех зашедших (ARPU)", f"${arpu_usd:.4f}", f"R$ {arpu_robux:.2f}", help="Сколько приносит один абсолютно любой игрок в месяц (включая неплатящих)")
-m_col2.metric("Ценность игрока (LTV)", f"${ltv_usd:.4f}", f"R$ {ltv_robux:.2f}", help="Сколько игрок приносит за всё время активности в игре")
+m_col1.metric("Доход со всех зашедших (ARPU)", f"${arpu_usd:.4f}", f"R$ {arpu_robux:.2f}")
+m_col2.metric("Ценность игрока (LTV)", f"${ltv_usd:.4f}", f"R$ {ltv_robux:.2f}")
 
 if roi_months <= 1:
     m_col3.metric("Окупаемость $4,500", "1-й месяц!", delta="⚡ Сверхбыстрый возврат капитала")
@@ -104,7 +111,7 @@ else:
 
 st.markdown("---")
 
-# Построение графика
+# График
 months = ['М1 (Разработка)', 'М2 (Разработка)', 'М3 (Тест)', 'М4 (Релиз)', 'М5', 'М6']
 balance = [-4500, -4500, -4100, 
            -4100 + payout_step, 
