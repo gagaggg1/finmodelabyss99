@@ -71,4 +71,53 @@ investor_payout_usd = total_clear_profit_usd * share
 investor_payout_robux = usd_to_robux(investor_payout_usd, devex_rate)
 
 # 4. Расчет продуктовых метрик плейса
-arpu_usd = total_gross_usd / mau if
+arpu_usd = total_gross_usd / mau if mau > 0 else 0
+arpu_robux = total_gross_robux / mau if mau > 0 else 0
+
+ltv_usd = arpu_usd * 1.5  # Среднее время жизни игрока (1.5 месяца)
+ltv_robux = arpu_robux * 1.5
+
+# Срок окупаемости (ROI)
+payout_step = investor_payout_usd if share > 0 else total_clear_profit_usd
+roi_months = INVESTMENT / payout_step if payout_step > 0 else 99
+
+# --- ИНТЕРФЕЙС И ВЫВОД ДАННЫХ ---
+
+st.subheader("💰 Финансовые итоги проекта (в месяц)")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Общий оборот проекта", f"${total_gross_usd:,.2f}", f"R$ {int(total_gross_robux):,}")
+col2.metric("Фонд обновлений (контент)", f"${reinvestment_usd:,.2f}", f"R$ {int(reinvestment_robux):,}")
+col3.metric("Чистая прибыль студии", f"${total_clear_profit_usd:,.2f}", f"R$ {int(total_clear_profit_robux):,}")
+col4.metric("Чистый доход инвестора", f"${investor_payout_usd:,.2f}", f"R$ {int(investor_payout_robux):,}")
+
+st.markdown("---")
+
+st.subheader("📊 Важнейшие продуктовые метрики плейса")
+m_col1, m_col2, m_col3 = st.columns(3)
+m_col1.metric("Доход со всех зашедших (ARPU)", f"${arpu_usd:.4f}", f"R$ {arpu_robux:.2f}", help="Сколько приносит один абсолютно любой игрок в месяц (включая неплатящих)")
+m_col2.metric("Ценность игрока (LTV)", f"${ltv_usd:.4f}", f"R$ {ltv_robux:.2f}", help="Сколько игрок приносит за всё время активности в игре")
+
+if roi_months <= 1:
+    m_col3.metric("Окупаемость $4,500", "1-й месяц!", delta="⚡ Сверхбыстрый возврат капитала")
+else:
+    m_col3.metric("Окупаемость $4,500", f"~ {roi_months:.1f} мес.", delta="После старта релиза")
+
+st.markdown("---")
+
+# Построение графика
+months = ['М1 (Разработка)', 'М2 (Разработка)', 'М3 (Тест)', 'М4 (Релиз)', 'М5', 'М6']
+balance = [-4500, -4500, -4100, 
+           -4100 + payout_step, 
+           -4100 + (payout_step * 2), 
+           -4100 + (payout_step * 3)]
+
+fig, ax = plt.subplots(figsize=(10, 3.5))
+ax.axhline(0, color='gray', linewidth=0.8, linestyle='--')
+ax.plot(months, balance, marker='o', color='#00e676', linewidth=2.5, label="Баланс")
+ax.fill_between(months, balance, 0, where=[b<0 for b in balance], color='#ff1744', alpha=0.15)
+ax.fill_between(months, balance, 0, where=[b>=0 for b in balance], color='#00e676', alpha=0.15)
+ax.set_ylabel("Капитал ($)")
+ax.set_title("График окупаемости стартовых инвестиций")
+ax.grid(True, alpha=0.2)
+
+st.pyplot(fig)
