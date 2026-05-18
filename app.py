@@ -5,21 +5,21 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Abyss 99 Financial Model", layout="wide")
 
 st.title("⚓ Финансовая модель: «99 Ночей в Бездне»")
-st.write("Интерактивный калькулятор доходности игры в Roblox (Гибкая базовая модель).")
+st.write("Интерактивный калькулятор. Управляйте ползунками или кликните дважды на число справа от них, чтобы ввести значение вручную.")
 
 # Константы платформы Roblox
 ROBLOX_TAX = 0.30       # Фиксированная комиссия 30%
 INVESTMENT = 4500       # Сумма вложений инвестора
 
-# Боковая панель управления (Ввод чисел вручную)
+# Боковая панель управления (Ползунки + ввод вручную при клике)
 st.sidebar.header("🎛️ Настройка переменных")
 
-ccu = st.sidebar.number_input("Средний онлайн (CCU):", min_value=0, max_value=100000, value=1500, step=100)
-mau = st.sidebar.number_input("Игроков в месяц (MAU):", min_value=0, max_value=50000000, value=250000, step=10000)
-conv = st.sidebar.number_input("Конверсия в донат (%):", min_value=0.0, max_value=100.0, value=2.0, step=0.1, format="%.1f") / 100.0
-arppu = st.sidebar.number_input("Средний чек (Robux):", min_value=0, max_value=100000, value=250, step=10)
-devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 Robux):", min_value=0.0, max_value=0.1, value=0.0035, step=0.0001, format="%.4f")
-share = st.sidebar.number_input("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=35, step=5) / 100.0
+ccu = st.sidebar.slider("Средний онлайн (CCU):", min_value=0, max_value=30000, value=1500, step=100)
+mau = st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=5000000, value=250000, step=10000)
+conv = st.sidebar.slider("Конверсия в донат (%):", min_value=0.0, max_value=10.0, value=2.0, step=0.1, format="%.1f") / 100.0
+arppu = st.sidebar.slider("Средний чек (Robux):", min_value=10, max_value=2000, value=250, step=10)
+devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.0100, value=0.0035, step=0.0001, format="%.4f")
+share = st.sidebar.slider("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=35, step=5) / 100.0
 
 # 1. Расчет чистой прибыли с прямых донатов
 paying_users = mau * conv
@@ -34,7 +34,6 @@ total_monthly_usd = net_usd_donates + premium_bonus
 investor_payout = total_monthly_usd * share
 
 # Расчет окупаемости (ROI)
-# Если доля инвестора = 0%, то технически окупаемости "нет", считаем по 100% доходу плейса до возврата инвестиций
 if share > 0:
     roi_months = INVESTMENT / investor_payout if investor_payout > 0 else 99
 else:
@@ -55,8 +54,6 @@ st.markdown("---")
 # Построение интерактивного графика
 months = ['М1 (Разработка)', 'М2 (Разработка)', 'М3 (Тест)', 'М4 (Релиз)', 'М5', 'М6']
 
-# Моделируем баланс: до релиза инвестор в минусе на $4500, на тесте немного отбивается (-$4100)
-# С 4 месяца капает выплата инвестору. Если доля 0%, график просто покажет выход самого проекта "в ноль".
 payout_step = investor_payout if share > 0 else total_monthly_usd
 balance = [-4500, -4500, -4100, 
            -4100 + payout_step, 
