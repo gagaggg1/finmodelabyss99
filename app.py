@@ -5,22 +5,18 @@ import matplotlib.pyplot as plt
 st.set_page_config(page_title="Abyss 99 Business Model", layout="wide")
 
 st.title("🐙 Бизнес-модель: «99 Ночей в Бездне»")
-st.write("Профессиональный расчет доходности. Все параметры аудитории (DAU, MAU, CCU) связаны: изменение одного автоматически пересчитывает остальные.")
+st.write("Профессиональный расчет доходности. Полная двусторонняя синхронизация ползунков и ручного ввода в реальном времени.")
 
 # Фиксированные константы
 ROBLOX_TAX = 0.30       # Комиссия платформы Roblox
 INVESTMENT = 4500       # Стартовый капитал инвестора
 
-# 1. Инициализация базовых параметров в памяти (session_state)
+# 1. Единый источник правды в памяти
 if "dau" not in st.session_state: st.session_state["dau"] = 20000
 if "sticky_factor" not in st.session_state: st.session_state["sticky_factor"] = 10.0
 if "session_time" not in st.session_state: st.session_state["session_time"] = 35
-
-# Рассчитываем дефолтные MAU и CCU на основе базовых DAU, Sticky и Session Time
-if "mau" not in st.session_state: 
-    st.session_state["mau"] = int(st.session_state["dau"] / (st.session_state["sticky_factor"] / 100.0))
-if "ccu" not in st.session_state: 
-    st.session_state["ccu"] = int((st.session_state["dau"] * st.session_state["session_time"]) / 1440)
+if "mau" not in st.session_state: st.session_state["mau"] = 200000
+if "ccu" not in st.session_state: st.session_state["ccu"] = 486
 
 if "conv" not in st.session_state: st.session_state["conv"] = 2.0
 if "arppu" not in st.session_state: st.session_state["arppu"] = 250
@@ -31,99 +27,86 @@ if "marketing_rate" not in st.session_state: st.session_state["marketing_rate"] 
 if "tax_rate" not in st.session_state: st.session_state["tax_rate"] = 6
 if "share" not in st.session_state: st.session_state["share"] = 35
 
+# 2. Математические колбэки для пересчета зависимостей при вводе
+def update_from_dau():
+    sticky_calc = st.session_state["dau_val"] / (st.session_state["sticky_factor"] / 100.0) if st.session_state["sticky_factor"] > 0 else 0
+    st.session_state["mau"] = int(sticky_calc)
+    st.session_state["ccu"] = int((st.session_state["dau_val"] * st.session_state["session_time"]) / 1440)
+    st.session_state["dau"] = st.session_state["dau_val"]
+
+def update_from_mau():
+    st.session_state["dau"] = int(st.session_state["mau_val"] * (st.session_state["sticky_factor"] / 100.0))
+    st.session_state["ccu"] = int((st.session_state["dau"] * st.session_state["session_time"]) / 1440)
+    st.session_state["mau"] = st.session_state["mau_val"]
+
+def update_from_ccu():
+    st.session_state["dau"] = int((st.session_state["ccu_val"] * 1440) / st.session_state["session_time"]) if st.session_state["session_time"] > 0 else 0
+    st.session_state["mau"] = int(st.session_state["dau"] / (st.session_state["sticky_factor"] / 100.0)) if st.session_state["sticky_factor"] > 0 else 0
+    st.session_state["ccu"] = st.session_state["ccu_val"]
+
+def update_from_metrics():
+    st.session_state["mau"] = int(st.session_state["dau"] / (st.session_state["sticky_factor"] / 100.0)) if st.session_state["sticky_factor"] > 0 else 0
+    st.session_state["ccu"] = int((st.session_state["dau"] * st.session_state["session_time"]) / 1440)
+
 # Боковая панель управления
 st.sidebar.header("🎛️ Настройка переменных")
 input_mode = st.sidebar.radio("Режим ввода данных:", ("Ползунки", "Ввод вручную"))
-
 st.sidebar.markdown("---")
 
-# Флаг для отслеживания того, какой виджет изменился, чтобы избежать бесконечного цикла
-# Нам нужно зафиксировать значения до отрисовки
-current_dau = st.session_state["dau"]
-current_mau = st.session_state["mau"]
-current_ccu = st.session_state["ccu"]
-current_sticky = st.session_state["sticky_factor"]
-current_time = st.session_state["session_time"]
-
-# 2. Отрисовка интерфейса (Ползунки или Ручной ввод)
+# 3. Отрисовка интерфейса с принудительным обновлением стейта
 if input_mode == "Ползунки":
     st.sidebar.markdown("### 👥 Аудитория и Трафик")
-    dau = st.sidebar.slider("Игроков в день (DAU):", min_value=1000, max_value=500000, value=int(current_dau), step=1000, key="dau_slide")
-    mau = st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=5000000, value=int(current_mau), step=10000, key="mau_slide")
-    ccu = st.sidebar.slider("Средний онлайн (CCU):", min_value=10, max_value=30000, value=int(current_ccu), step=50, key="ccu_slide")
+    st.sidebar.slider("Игроков в день (DAU):", min_value=1000, max_value=500000, step=1000, key="dau_val", value=int(st.session_state["dau"]), on_change=update_from_dau)
+    st.sidebar.slider("Игроков в месяц (MAU):", min_value=10000, max_value=5000000, step=10000, key="mau_val", value=int(st.session_state["mau"]), on_change=update_from_mau)
+    st.sidebar.slider("Средний онлайн (CCU):", min_value=10, max_value=30000, step=50, key="ccu_val", value=int(st.session_state["ccu"]), on_change=update_from_ccu)
     
     st.sidebar.markdown("### 🕒 Вовлеченность и Удержание")
-    sticky_factor_pct = st.sidebar.slider("Липучесть игры (Sticky Factor %):", min_value=5.0, max_value=30.0, value=float(current_sticky), step=0.5, format="%.1f", key="sticky_slide")
-    session_time = st.sidebar.slider("Длина сессии (минут):", min_value=5, max_value=120, value=int(current_time), step=5, key="time_slide")
-    premium_ratio_pct = st.sidebar.slider("Доля Premium игроков (%):", min_value=0.5, max_value=10.0, value=float(st.session_state["premium_ratio"]), step=0.1, format="%.1f", key="premium_slide")
+    st.sidebar.slider("Липучесть игры (Sticky Factor %):", min_value=5.0, max_value=30.0, step=0.5, format="%.1f", key="sticky_factor", on_change=update_from_metrics)
+    st.sidebar.slider("Длина сессии (минут):", min_value=5, max_value=120, step=5, key="session_time", on_change=update_from_metrics)
     
-    st.sidebar.markdown("### 💎 Монетизация")
-    conv_pct = st.sidebar.slider("Конверсия в донат (%):", min_value=0.1, max_value=10.0, value=float(st.session_state["conv"]), step=0.1, format="%.1f", key="conv_slide")
-    arppu = st.sidebar.slider("Средний чек донатера (Robux):", min_value=10, max_value=2000, value=int(st.session_state["arppu"]), step=10, key="arppu_slide")
-    devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.0100, value=float(st.session_state["devex_rate"]), step=0.0001, format="%.4f", key="devex_slide")
-    
-    st.sidebar.markdown("### 📈 Распределение прибыли")
-    reinvest_rate_pct = st.sidebar.slider("Фонд развития игры (%):", min_value=0, max_value=50, value=int(st.session_state["reinvest_rate"]), step=5, key="reinvest_slide")
-    marketing_rate_pct = st.sidebar.slider("Маркетинг и реклама (%):", min_value=0, max_value=30, value=int(st.session_state["marketing_rate"]), step=5, key="marketing_slide")
-    tax_rate_pct = st.sidebar.slider("Налог на вывод денег (%):", min_value=0, max_value=20, value=int(st.session_state["tax_rate"]), step=1, key="tax_slide")
-    share_pct = st.sidebar.slider("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=int(st.session_state["share"]), step=5, key="share_slide")
+    st.sidebar.markdown("### 💎 Монетизация и Экономика")
+    st.sidebar.slider("Конверсия в донат (%):", min_value=0.1, max_value=10.0, step=0.1, format="%.1f", key="conv")
+    st.sidebar.slider("Средний чек донатера (Robux):", min_value=10, max_value=2000, step=10, key="arppu")
+    st.sidebar.slider("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.0100, step=0.0001, format="%.4f", key="devex_rate")
+    st.sidebar.slider("Доля Premium игроков (%):", min_value=0.5, max_value=10.0, step=0.1, format="%.1f", key="premium_ratio")
+    st.sidebar.slider("Фонд развития игры (%):", min_value=0, max_value=50, step=5, key="reinvest_rate")
+    st.sidebar.slider("Маркетинг и реклама (%):", min_value=0, max_value=30, step=5, key="marketing_rate")
+    st.sidebar.slider("Налог на вывод денег (%):", min_value=0, max_value=20, step=1, key="tax_rate")
+    st.sidebar.slider("Доля инвестора после ROI (%):", min_value=0, max_value=100, step=5, key="share")
 else:
     st.sidebar.markdown("### 👥 Аудитория и Трафик")
-    dau = st.sidebar.number_input("Игроков в день (DAU):", min_value=0, max_value=5000000, value=int(current_dau), step=1000, key="dau_num")
-    mau = st.sidebar.number_input("Игроков в месяц (MAU):", min_value=0, max_value=50000000, value=int(current_mau), step=10000, key="mau_num")
-    ccu = st.sidebar.number_input("Средний онлайн (CCU):", min_value=0, max_value=100000, value=int(current_ccu), step=100, key="ccu_num")
+    st.sidebar.number_input("Игроков в день (DAU):", min_value=0, max_value=5000000, step=1000, key="dau_val", value=int(st.session_state["dau"]), on_change=update_from_dau)
+    st.sidebar.number_input("Игроков в месяц (MAU):", min_value=0, max_value=50000000, step=10000, key="mau_val", value=int(st.session_state["mau"]), on_change=update_from_mau)
+    st.sidebar.number_input("Средний онлайн (CCU):", min_value=0, max_value=100000, step=100, key="ccu_val", value=int(st.session_state["ccu"]), on_change=update_from_ccu)
     
     st.sidebar.markdown("### 🕒 Вовлеченность и Удержание")
-    sticky_factor_pct = st.sidebar.number_input("Липучесть игры (Sticky Factor %):", min_value=1.0, max_value=100.0, value=float(current_sticky), step=0.5, format="%.1f", key="sticky_num")
-    session_time = st.sidebar.number_input("Длина сессии (минут):", min_value=1, max_value=240, value=int(current_time), step=5, key="time_num")
-    premium_ratio_pct = st.sidebar.number_input("Доля Premium игроков (%):", min_value=0.0, max_value=100.0, value=float(st.session_state["premium_ratio"]), step=0.1, format="%.1f", key="premium_num")
+    st.sidebar.number_input("Липучесть игры (Sticky Factor %):", min_value=1.0, max_value=100.0, step=0.5, format="%.1f", key="sticky_factor", on_change=update_from_metrics)
+    st.sidebar.number_input("Длина сессии (минут):", min_value=1, max_value=240, step=5, key="session_time", on_change=update_from_metrics)
+    
+    st.sidebar.markdown("### 💎 Монетизация и Экономика")
+    st.sidebar.number_input("Конверсия в донат (%):", min_value=0.0, max_value=100.0, step=0.1, format="%.1f", key="conv")
+    st.sidebar.number_input("Средний чек донатера (Robux):", min_value=0, max_value=100000, step=10, key="arppu")
+    st.sidebar.number_input("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.1000, step=0.0001, format="%.4f", key="devex_rate")
+    st.sidebar.number_input("Доля Premium игроков (%):", min_value=0.0, max_value=100.0, step=0.1, format="%.1f", key="premium_ratio")
+    st.sidebar.number_input("Фонд развития игры (%):", min_value=0, max_value=100, step=5, key="reinvest_rate")
+    st.sidebar.number_input("Маркетинг и реклама (%):", min_value=0, max_value=100, step=5, key="marketing_rate")
+    st.sidebar.number_input("Налог на вывод денег (%):", min_value=0, max_value=100, step=1, key="tax_rate")
+    st.sidebar.number_input("Доля инвестора после ROI (%):", min_value=0, max_value=100, step=5, key="share")
 
-    st.sidebar.markdown("### 💎 Монетизация")
-    conv_pct = st.sidebar.number_input("Конверсия в донат (%):", min_value=0.0, max_value=100.0, value=float(st.session_state["conv"]), step=0.1, format="%.1f", key="conv_num")
-    arppu = st.sidebar.number_input("Средний чек донатера (Robux):", min_value=0, max_value=100000, value=int(st.session_state["arppu"]), step=10, key="arppu_num")
-    devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.1000, value=float(st.session_state["devex_rate"]), step=0.0001, format="%.4f", key="devex_num")
-
-    st.sidebar.markdown("### 📈 Распределение прибыли")
-    reinvest_rate_pct = st.sidebar.number_input("Фонд развития игры (%):", min_value=0, max_value=100, value=int(st.session_state["reinvest_rate"]), step=5, key="reinvest_num")
-    marketing_rate_pct = st.sidebar.number_input("Маркетинг и реклама (%):", min_value=0, max_value=100, value=int(st.session_state["marketing_rate"]), step=5, key="marketing_num")
-    tax_rate_pct = st.sidebar.number_input("Налог на вывод денег (%):", min_value=0, max_value=100, value=int(st.session_state["tax_rate"]), step=1, key="tax_num")
-    share_pct = st.sidebar.number_input("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=int(st.session_state["share"]), step=5, key="share_num")
-
-# 3. Умный пересчет зависимостей ПЕРЕД сохранением в память
-# Проверяем, какой именно параметр изменил пользователь по сравнению с прошлым шагом
-sticky_calc = float(sticky_factor_pct) / 100.0
-
-if dau != current_dau:
-    # Пользователь изменил DAU -> пересчитываем MAU и CCU
-    mau = int(dau / sticky_calc) if sticky_calc > 0 else 0
-    ccu = int((dau * session_time) / 1440)
-elif mau != current_mau:
-    # Пользователь изменил MAU -> пересчитываем DAU и CCU
-    dau = int(mau * sticky_calc)
-    ccu = int((dau * session_time) / 1440)
-elif ccu != current_ccu:
-    # Пользователь изменил CCU -> пересчитываем DAU и MAU
-    dau = int((ccu * 1440) / session_time) if session_time > 0 else 0
-    mau = int(dau / sticky_calc) if sticky_calc > 0 else 0
-elif session_time != current_time or sticky_factor_pct != current_sticky:
-    # Пользователь изменил длину сессии или липучесть -> базовым берем DAU и пересчитываем остальное
-    mau = int(dau / sticky_calc) if sticky_calc > 0 else 0
-    ccu = int((dau * session_time) / 1440)
-
-# Сохраняем итоговые скорректированные данные в session_state
-st.session_state["dau"] = dau
-st.session_state["mau"] = mau
-st.session_state["ccu"] = ccu
-st.session_state["sticky_factor"] = sticky_factor_pct
-st.session_state["session_time"] = session_time
-st.session_state["conv"] = conv_pct
-st.session_state["arppu"] = arppu
-st.session_state["devex_rate"] = devex_rate
-st.session_state["premium_ratio"] = premium_ratio_pct
-st.session_state["reinvest_rate"] = reinvest_rate_pct
-st.session_state["marketing_rate"] = marketing_rate_pct
-st.session_state["tax_rate"] = tax_rate_pct
-st.session_state["share"] = share_pct
+# Извлекаем финальные значения из сессии для расчетов
+dau = st.session_state["dau"]
+mau = st.session_state["mau"]
+ccu = st.session_state["ccu"]
+sticky_factor_pct = st.session_state["sticky_factor"]
+session_time = st.session_state["session_time"]
+conv_pct = st.session_state["conv"]
+arppu = st.session_state["arppu"]
+devex_rate = st.session_state["devex_rate"]
+premium_ratio_pct = st.session_state["premium_ratio"]
+reinvest_rate_pct = st.session_state["reinvest_rate"]
+marketing_rate_pct = st.session_state["marketing_rate"]
+tax_rate_pct = st.session_state["tax_rate"]
+share_pct = st.session_state["share"]
 
 # Конвертация процентов для финальной математики доходов
 conv = float(conv_pct) / 100.0
@@ -137,17 +120,14 @@ share = float(share_pct) / 100.0
 def usd_to_robux(usd, rate):
     return usd / rate if rate > 0 else 0
 
-# Прямые донаты (зависят от MAU)
 paying_users = mau * conv
 gross_robux_donates = paying_users * arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Premium Payouts (зависят от CCU)
 premium_bonus_usd = ccu * (session_time / 30.0) * (premium_ratio / 0.02)
 total_gross_usd = net_usd_donates + premium_bonus_usd
 total_gross_robux = usd_to_robux(total_gross_usd, devex_rate)
 
-# Экономика расходов и выплат
 tax_usd = total_gross_usd * tax_rate
 tax_robux = usd_to_robux(tax_usd, devex_rate)
 
@@ -171,7 +151,6 @@ ltv_robux = arpu_robux * 1.5
 arpdau_usd = total_gross_usd / 30 / dau if dau > 0 else 0
 arpdau_robux = total_gross_robux / 30 / dau if dau > 0 else 0
 
-# Окупаемость
 payout_step = investor_payout_usd if share > 0 else total_clear_profit_usd
 roi_months = INVESTMENT / payout_step if payout_step > 0 else 99
 
