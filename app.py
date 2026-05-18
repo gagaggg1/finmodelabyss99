@@ -2,16 +2,16 @@ import streamlit as st
 import matplotlib.pyplot as plt
 
 # Настройки веб-страницы
-st.set_page_config(page_title="Abyss 99 Pro Financial Model", layout="wide")
+st.set_page_config(page_title="Abyss 99 Business Model", layout="wide")
 
-st.title("⚓ Симулятор игровой экономики: «99 Ночей в Бездне»")
-st.write("Математически связанная финансовая модель, где метрики вовлеченности напрямую создают онлайн и доход.")
+st.title("🐙 Бизнес-модель: «99 Ночей в Бездне»")
+st.write("Профессиональный расчет доходности. Все показатели связаны: изменение вовлеченности автоматически меняет онлайн и прибыль.")
 
 # Фиксированные константы
 ROBLOX_TAX = 0.30       # Комиссия платформы Roblox
 INVESTMENT = 4500       # Стартовый капитал инвестора
 
-# 1. Инициализация базовых параметров в session_state
+# 1. Инициализация базовых параметров в памяти (session_state)
 if "dau" not in st.session_state: st.session_state["dau"] = 20000
 if "sticky_factor" not in st.session_state: st.session_state["sticky_factor"] = 10.0
 if "conv" not in st.session_state: st.session_state["conv"] = 2.0
@@ -44,8 +44,8 @@ if input_mode == "Ползунки":
     arppu = st.sidebar.slider("Средний чек донатера (Robux):", min_value=10, max_value=2000, value=int(st.session_state["arppu"]), step=10, key="arppu_slide")
     devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.0100, value=float(st.session_state["devex_rate"]), step=0.0001, format="%.4f", key="devex_slide")
     
-    st.sidebar.markdown("### 📈 Распределение бюджета")
-    reinvest_rate_pct = st.sidebar.slider("Фонд развития игры (% от прибыли):", min_value=0, max_value=50, value=int(st.session_state["reinvest_rate"]), step=5, key="reinvest_slide")
+    st.sidebar.markdown("### 📈 Распределение прибыли")
+    reinvest_rate_pct = st.sidebar.slider("Фонд развития игры (%):", min_value=0, max_value=50, value=int(st.session_state["reinvest_rate"]), step=5, key="reinvest_slide")
     tax_rate_pct = st.sidebar.slider("Налог на вывод денег (%):", min_value=0, max_value=20, value=int(st.session_state["tax_rate"]), step=1, key="tax_slide")
     share_pct = st.sidebar.slider("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=int(st.session_state["share"]), step=5, key="share_slide")
 else:
@@ -62,8 +62,8 @@ else:
     arppu = st.sidebar.number_input("Средний чек донатера (Robux):", min_value=0, max_value=100000, value=int(st.session_state["arppu"]), step=10, key="arppu_num")
     devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 Robux):", min_value=0.0010, max_value=0.1000, value=float(st.session_state["devex_rate"]), step=0.0001, format="%.4f", key="devex_num")
 
-    st.sidebar.markdown("### 📈 Распределение бюджета")
-    reinvest_rate_pct = st.sidebar.number_input("Фонд развития игры (% от прибыли):", min_value=0, max_value=100, value=int(st.session_state["reinvest_rate"]), step=5, key="reinvest_num")
+    st.sidebar.markdown("### 📈 Распределение прибыли")
+    reinvest_rate_pct = st.sidebar.number_input("Фонд развития игры (%):", min_value=0, max_value=100, value=int(st.session_state["reinvest_rate"]), step=5, key="reinvest_num")
     tax_rate_pct = st.sidebar.number_input("Налог на вывод денег (%):", min_value=0, max_value=100, value=int(st.session_state["tax_rate"]), step=1, key="tax_num")
     share_pct = st.sidebar.number_input("Доля инвестора после ROI (%):", min_value=0, max_value=100, value=int(st.session_state["share"]), step=5, key="share_num")
 
@@ -89,26 +89,26 @@ share = float(share_pct) / 100.0
 
 # --- СЛОЖНЫЕ ЗАВИСИМЫЕ РАСЧЕТЫ ---
 
-# АВТО-МАТЕМАТИКА 1: Рассчитываем MAU на основе DAU и Sticky Factor
+# 1. Автоматический расчет MAU (DAU / Sticky Factor)
 mau = int(dau / sticky_factor) if sticky_factor > 0 else 0
 
-# АВТО-МАТЕМАТИКА 2: Рассчитываем CCU (онлайн) на основе DAU и Длины сессии
+# 2. Автоматический расчет онлайна (CCU) на основе DAU и времени сессии
 ccu = int((dau * session_time) / 1440)
 
 def usd_to_robux(usd, rate):
     return usd / rate if rate > 0 else 0
 
-# Прямые донаты (зависят от рассчитанного MAU)
+# Прямые донаты (зависят от MAU)
 paying_users = mau * conv
 gross_robux_donates = paying_users * arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Premium Payouts (зависят от автоматически рассчитанного CCU)
+# Premium Payouts (зависят от рассчитанного CCU)
 premium_bonus_usd = ccu * (session_time / 30.0) * (premium_ratio / 0.02)
 total_gross_usd = net_usd_donates + premium_bonus_usd
 total_gross_robux = usd_to_robux(total_gross_usd, devex_rate)
 
-# Экономика расходов
+# Экономика расходов и выплат
 tax_usd = total_gross_usd * tax_rate
 tax_robux = usd_to_robux(tax_usd, devex_rate)
 
@@ -121,25 +121,24 @@ total_clear_profit_robux = usd_to_robux(total_clear_profit_usd, devex_rate)
 investor_payout_usd = total_clear_profit_usd * share
 investor_payout_robux = usd_to_robux(investor_payout_usd, devex_rate)
 
-# Метрики окупаемости продукта
+# Метрики продукта
 arpu_usd = total_gross_usd / mau if mau > 0 else 0
 arpu_robux = total_gross_robux / mau if mau > 0 else 0
 ltv_usd = arpu_usd * 1.5  
 ltv_robux = arpu_robux * 1.5
-
 arpdau_usd = total_gross_usd / 30 / dau if dau > 0 else 0
 arpdau_robux = total_gross_robux / 30 / dau if dau > 0 else 0
 
+# Окупаемость
 payout_step = investor_payout_usd if share > 0 else total_clear_profit_usd
 roi_months = INVESTMENT / payout_step if payout_step > 0 else 99
 
 # --- ИНТЕРФЕЙС И ВЫВОД ---
 
-# Выводим автоматически рассчитанные базовые показатели платформы
-st.subheader("🖥️ Автоматически рассчитанные показатели платформы")
+st.subheader("🖥️ Динамические показатели платформы")
 sys_col1, sys_col2, sys_col3 = st.columns(3)
-sys_col1.metric("Рассчитанный средний онлайн (CCU)", f"{ccu:,} чел. одновременно", help="Количество игроков в игре прямо сейчас. Рассчитано автоматически на основе DAU и длины сессии.")
-sys_col2.metric("Общая аудитория за месяц (MAU)", f"{mau:,} игроков", help="Месячный трафик. Рассчитан автоматически на основе DAU и липучести игры (Sticky Factor).")
+sys_col1.metric("Средний онлайн (CCU)", f"{ccu:,} чел.", help="Среднее кол-во людей в игре одновременно. Рассчитано автоматически.")
+sys_col2.metric("Аудитория за месяц (MAU)", f"{mau:,} чел.", help="Общее кол-во уникальных игроков за месяц. Рассчитано автоматически.")
 sys_col3.metric("Доход в день с активного (ARPDAU)", f"${arpdau_usd:.4f}", f"R$ {arpdau_robux:.2f}")
 
 st.markdown("---")
@@ -147,35 +146,18 @@ st.markdown("---")
 st.subheader("💰 Финансовые итоги проекта (в месяц)")
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Общий оборот проекта", f"${total_gross_usd:,.2f}", f"R$ {int(total_gross_robux):,}")
-col2.metric("Фонд обновлений (контент)", f"${reinvestment_usd:,.2f}", f"R$ {int(reinvestment_robux):,}")
+col2.metric("Фонд обновлений", f"${reinvestment_usd:,.2f}", f"R$ {int(reinvestment_robux):,}")
 col3.metric("Чистая прибыль студии", f"${total_clear_profit_usd:,.2f}", f"R$ {int(total_clear_profit_robux):,}")
 col4.metric("Чистый доход инвестора", f"${investor_payout_usd:,.2f}", f"R$ {int(investor_payout_robux):,}")
 
 st.markdown("---")
 
-st.subheader("📊 Ключевые продуктовые метрики")
+st.subheader("📊 Продуктовые метрики")
 m_col1, m_col2, m_col3 = st.columns(3)
 m_col1.metric("Ценность игрока (LTV)", f"${ltv_usd:.4f}", f"R$ {ltv_robux:.2f}")
-m_col2.metric("Липучесть игры (Sticky Factor)", f"{sticky_factor_pct:.1f}%", help="Какая доля от месячной аудитории заходит в хоррор каждый день.")
+m_col2.metric("Sticky Factor", f"{sticky_factor_pct:.1f}%", help="Удержание аудитории.")
 
 if roi_months <= 1:
-    m_col3.metric("Окупаемость инвестиций $4,500", "1-й месяц релиза!", delta="⚡ Моментально")
+    m_col3.metric("Окупаемость $4,500", "1-й месяц релиза!", delta="⚡ Моментально")
 else:
-    m_col3.metric("Окупаемость инвестиций $4,500", f"~ {roi_months:.1f} мес.", delta="После старта релиза")
-
-st.markdown("---")
-
-# График
-months = ['М1 (Разработка)', 'М2 (Разработка)', 'М3 (Тест)', 'М4 (Релиз)', 'М5', 'М6']
-balance = [-4500, -4500, -4100, -4100 + payout_step, -4100 + (payout_step * 2), -4100 + (payout_step * 3)]
-
-fig, ax = plt.subplots(figsize=(10, 3.2))
-ax.axhline(0, color='gray', linewidth=0.8, linestyle='--')
-ax.plot(months, balance, marker='o', color='#00e676', linewidth=2.5, label="Баланс")
-ax.fill_between(months, balance, 0, where=[b<0 for b in balance], color='#ff1744', alpha=0.15)
-ax.fill_between(months, balance, 0, where=[b>=0 for b in balance], color='#00e676', alpha=0.15)
-ax.set_ylabel("Капитал ($)")
-ax.set_title("График окупаемости стартовых инвестиций")
-ax.grid(True, alpha=0.2)
-
-st.pyplot(fig)
+    m_col3
