@@ -150,22 +150,27 @@ st.info(f"ℹ️ Доход от Creator Rewards: ${awards_bonus_usd:,.2f} в м
         f"(Из них Daily Engagement: ${engagement_rewards_usd:,.2f} ; "
         f"Прямой долларовый Affiliate бонус за новичков: ${affiliate_rewards_usd:,.2f})")
 
-# --- ГРАФИК ОКУПАЕМОСТИ ---
+# --- ГРАФИК ROI (% возврат инвестиций) ---
 st.markdown("---")
-st.subheader("📉 Динамика возврата инвестиций (Баланс инвестора)")
+st.subheader("📈 ROI (возврат инвестиций %)")
 
-fig, ax = plt.subplots(figsize=(10, 3.5))
+fig2, ax2 = plt.subplots(figsize=(10, 3.5))
 
-months = np.arange(0, 7)
-balance_timeline = -INVESTMENT + (investor_payout_usd * months)
+roi_timeline = []
 
-ax.plot(months, balance_timeline, color='#00ff41', marker='o', linewidth=2, label="Баланс инвестора ($)")
-ax.axhline(0, color='white', lw=1, linestyle='--')
+for m in months:
+    total_return = investor_payout_usd * m
+    roi_percent = ((total_return - INVESTMENT) / INVESTMENT) * 100
+    roi_timeline.append(roi_percent)
 
-ax.set_xlabel("Месяцы после инвестирования")
-ax.set_ylabel("Текущий баланс ($)")
-ax.set_xticks(months)
-ax.grid(True, alpha=0.2)
-ax.legend()
+ax2.plot(months, roi_timeline, color='cyan', marker='o', linewidth=2, label="ROI (%)")
+ax2.axhline(0, color='white', lw=1, linestyle='--')
+ax2.axhline(100, color='green', lw=1, linestyle='--', label="Break-even (100%)")
+
+ax2.set_xlabel("Месяцы после инвестирования")
+ax2.set_ylabel("ROI (%)")
+ax2.set_xticks(months)
+ax2.grid(True, alpha=0.2)
+ax2.legend()
 
 st.pyplot(fig)
