@@ -6,7 +6,7 @@ import numpy as np
 st.set_page_config(page_title="Abyss 99 Business Model Pro", layout="wide")
 
 st.title("🐙 Бизнес-модель: «99 Ночей в Бездне»")
-st.write("Профессиональный расчет доходности. Центрировано вокруг CCU с корректным расчетом Retention.")
+st.write("Профессиональный расчет доходности. Центрировано вокруг CCU с корректным распределением долей.")
 
 # Границы для ползунков
 MIN_DAU, MAX_DAU = 1000, 5000000
@@ -38,18 +38,15 @@ if "share" not in st.session_state: st.session_state["share"] = 35
 
 # 2. МАТЕМАТИЧЕСКИЕ КОЛБЭКИ (CCU — главный источник правды, Retention растит базу)
 def sync_from_ccu():
-    # Из CCU и длины сессии получаем DAU (сколько человек в день генерируют такой онлайн)
     sess = st.session_state["session_time"]
     dau_calc = (st.session_state["ccu_val"] * 1440) / sess if sess > 0 else 0
     st.session_state["dau_val"] = max(MIN_DAU, min(int(dau_calc), MAX_DAU))
     
-    # Рост Retention теперь увеличивает накопительную базу MAU
     ret = st.session_state["retention"] / 100.0
     mau_calc = st.session_state["dau_val"] * (2 - ret) * 5  
     st.session_state["mau_val"] = max(MIN_MAU, min(int(mau_calc), MAX_MAU))
 
 def sync_from_dau():
-    # Если пользователь руками меняет DAU, пересчитываем CCU и MAU
     sess = st.session_state["session_time"]
     ccu_calc = (st.session_state["dau_val"] * sess) / 1440
     st.session_state["ccu_val"] = max(MIN_CCU, min(int(ccu_calc), MAX_CCU))
@@ -59,7 +56,6 @@ def sync_from_dau():
     st.session_state["mau_val"] = max(MIN_MAU, min(int(mau_calc), MAX_MAU))
 
 def sync_from_mau():
-    # Если пользователь руками меняет MAU, адаптируем DAU и CCU
     mau_input = st.session_state["mau_val"]
     ret = st.session_state["retention"] / 100.0
     dau_calc = mau_input / ((2 - ret) * 5) if (2 - ret) * 5 > 0 else 0
@@ -69,7 +65,6 @@ def sync_from_mau():
     ccu_calc = (st.session_state["dau_val"] * sess) / 1440
     st.session_state["ccu_val"] = max(MIN_CCU, min(int(ccu_calc), MAX_CCU))
 
-# Первичный запуск синхронизации при старте приложения
 if "init" not in st.session_state:
     sync_from_ccu()
     st.session_state["init"] = True
@@ -139,50 +134,48 @@ marketing_rate = float(st.session_state["marketing_rate"]) / 100.0
 tax_rate = float(st.session_state["tax_rate"]) / 100.0
 share = float(st.session_state["share"]) / 100.0
 
-# --- РАСЧЕТЫ ЭКОНОМИКИ ДОХОДОВ (ИСПРАВЛЕНО) ---
+# --- РАСЧЕТЫ ЭКОНОМИКИ ДОХОДОВ ---
 def usd_to_robux(usd, rate):
     return usd / rate if rate > 0 else 0
 
-# Retention теперь работает как фактор лояльности и повторных покупок за месяц
 ret_factor = retention_pct / 10.0  
 
-# Донаты рассчитываются от стабильного дневного потока активных пользователей (DAU) с учетом удержания
 daily_paying_users = dau * conv
 monthly_transaction_volume = daily_paying_users * 30 * (1 + (ret_factor * 0.1))
 
 gross_robux_donates = monthly_transaction_volume * arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Премиум-выплаты растут от CCU, длины сессии и Retention (игроки дольше сидят внутри и чаще возвращаются)
 premium_bonus_usd = ccu * (session_time / 30.0) * (premium_ratio / 0.02) * (1 + ret_factor * 0.2)
 total_gross_usd = net_usd_donates + premium_bonus_usd
 total_gross_robux = usd_to_robux(total_gross_usd, devex_rate)
 
-# --- РАСЧЕТЫ РАСХОДОВ И ЧИСТОЙ ПРИБЫЛИ ---
+# --- РАСЧЕТЫ РАСХОДОВ И ЧИСТОЙ ПРИБЫЛИ (ИСПРАВЛЕНО) ---
 tax_usd = total_gross_usd * tax_rate
-tax_robux = usd_to_robux(tax_usd, devex_rate)
-
 reinvestment_usd = total_gross_usd * reinvest_rate
-reinvestment_robux = usd_to_robux(reinvestment_usd, devex_rate)
-
 marketing_usd = total_gross_usd * marketing_rate
-marketing_robux = usd_to_robux(marketing_usd, devex_rate)
 
-total_clear_profit_usd = total_gross_usd - tax_usd - reinvestment_usd - marketing_usd
-total_clear_profit_robux = usd_to_robux(total_clear_profit_usd, devex_rate)
+# Полный пул свободных денег после операционных расходов проекта
+total_pool_before_payout = total_gross_usd - tax_usd - reinvestment_usd - marketing_usd
 
-investor_payout_usd = total_clear_profit_usd * share
+# ИСПРАВЛЕНО: Теперь доля инвестора забирается ИЗ этого пула, а остаток уходит студии
+investor_payout_usd = total_pool_before_payout * share
 investor_payout_robux = usd_to_robux(investor_payout_usd, devex_rate)
 
+total_clear_profit_usd = total_pool_before_payout - investor_payout_usd
+total_clear_profit_robux = usd_to_robux(total_clear_profit_usd, devex_rate)
+
+# Для расчета окупаемости используется именно то, сколько забирает инвестор
+payout_step = investor_payout_usd
+roi_months = INVESTMENT / payout_step if payout_step > 0 else 99
+
+# Продуктовые метрики (считаются от общего оборота до деления)
 arpu_usd = total_gross_usd / mau if mau > 0 else 0
 arpu_robux = total_gross_robux / mau if mau > 0 else 0
 ltv_usd = arpu_usd * 1.5  
 ltv_robux = arpu_robux * 1.2
 arpdau_usd = total_gross_usd / 30 / dau if dau > 0 else 0
 arpdau_robux = total_gross_robux / 30 / dau if dau > 0 else 0
-
-payout_step = investor_payout_usd if share > 0 else total_clear_profit_usd
-roi_months = INVESTMENT / payout_step if payout_step > 0 else 99
 
 # --- ИНТЕРФЕЙС И ВЫВОД НА ЭКРАН ---
 st.subheader("🖥️ Динамические показатели аудитории")
@@ -196,10 +189,10 @@ st.markdown("---")
 st.subheader("💰 Финансовые итоги проекта (в месяц)")
 col1, col2, col3, col4, col5 = st.columns(5)
 col1.metric("Общий оборот", f"${total_gross_usd:,.2f}", f"R$ {int(total_gross_robux):,}")
-col2.metric("Фонд обновлений", f"${reinvestment_usd:,.2f}", f"R$ {int(reinvestment_robux):,}")
-col3.metric("Траты на маркетинг", f"${marketing_usd:,.2f}", f"R$ {int(marketing_robux):,}", delta_color="inverse")
-col4.metric("Чистая прибыль студии", f"${total_clear_profit_usd:,.2f}", f"R$ {int(total_clear_profit_robux):,}")
-col5.metric("Чистый доход инвестора", f"${investor_payout_usd:,.2f}", f"R$ {int(investor_payout_robux):,}")
+col2.metric("Фонд обновлений", f"${reinvestment_usd:,.2f}", f"R$ {int(usd_to_robux(reinvestment_usd, devex_rate)):,}")
+col3.metric("Траты на маркетинг", f"${marketing_usd:,.2f}", f"R$ {int(usd_to_robux(marketing_usd, devex_rate)):,}", delta_color="inverse")
+col4.metric("Чистая прибыль студии", f"${total_clear_profit_usd:,.2f}", f"R$ {int(total_clear_profit_robux):,}", help="Свободные деньги команды после выплаты инвестору.")
+col5.metric("Чистый доход инвестора", f"${investor_payout_usd:,.2f}", f"R$ {int(investor_payout_robux):,}", help="Доля инвестора от чистой прибыли.")
 
 st.markdown("---")
 
