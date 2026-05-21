@@ -64,9 +64,9 @@ else:
     st.sidebar.text(f"📉 Расчетный D30: {d30_calc:.1f}%")
     st.sidebar.markdown("---")
 
-    st.sidebar.subheader("🍩 dONUT")
-    base_conv = st.sidebar.number_input("Конверсия (%):", 0.0, 100.0, value=2.5, step=0.1) / 100.0
-    base_arppu = st.sidebar.number_input("Средний чек (R$):", 0, 100000, value=280, step=50)
+    st.sidebar.subheader("💸 Монетизация")
+    base_conv = st.sidebar.slider("Конверсия доната (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
+    base_arppu = st.sidebar.slider("Средний чек (R$):", 50, 2000, value=280, step=10)
     
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.number_input("Доля Active Spenders (%):", 0.0, 100.0, value=7.0, step=0.5) / 100.0
