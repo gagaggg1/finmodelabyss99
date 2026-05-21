@@ -8,6 +8,9 @@ st.set_page_config(page_title="Abyss 99 Accurate Model v4.0", layout="wide")
 st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v4.0)")
 st.write("Модель исправлена: учтены прямые долларовые выплаты **35% Affiliate Share** за новичков.")
 
+# --- НОВАЯ ПЛАШКА ВВОДА ---
+user_new_input = st.number_input("Введите количество новых игроков в день:", 1, 50000, value=200, step=10)
+
 # Константы
 ROBLOX_TAX = 0.30
 INVESTMENT = 4500
@@ -36,7 +39,7 @@ if input_mode == "Ползунки":
     base_conv = st.sidebar.slider("Базовая конверсия в донат (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
     base_arppu = st.sidebar.slider("Базовый чек донатера (R$):", 50, 2000, value=280, step=10)
     
-    # БЛОК НАСТРОЕК CREATOR REWARDS (Элитная логика)
+    # БЛОК НАСТРОЕК CREATOR REWARDS
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.slider("Доля Active Spenders на платформе (%):", 0.5, 15.0, value=7.0, step=0.5) / 100.0
     behavioral_filter = st.sidebar.slider("Эффективность фильтра (10+ мин) (%):", 1.0, 50.0, value=12.0, step=0.5) / 100.0
@@ -83,14 +86,15 @@ else:
         share = st.sidebar.number_input("Доля инвестора (%):", 0, 100, value=35, step=5) / 100.0
 
 # --- ЯДРО РАСЧЕТОВ ---
-d1 = d1_input
+d1 = d1_input / 100.0
 
 # Определение суточного потока (DAU) на основе удерживаемого CCU
 dau = (ccu * 1440) / TARGET_SESSION if TARGET_SESSION > 0 else 0
 
 # Жизненный цикл игрока и MAU
-player_lifetime_days = 1 + sum([(d1/100.0) * (t ** -alpha) for t in range(2, 31)])
-mau = dau * (30 / player_lifetime_days) if player_lifetime_days > 0 else 0
+retention_days_sum = 1 + sum([d1 * (t ** -alpha) for t in range(1, 30)])
+mau = int(user_new_input * retention_days_sum)
+required_new_users = dau / retention_days_sum
 
 # Влияние длины сессии на монетизацию донатов
 if session_time < TARGET_SESSION:
@@ -102,32 +106,25 @@ real_conv = min(0.15, base_conv * (session_mon_factor ** 0.5))
 real_arppu = base_arppu * (session_mon_factor ** 0.7)
 
 # 1. Расчет внутриигровых донатов (Геймпассы, валюта)
-monthly_paying_users = (dau * real_conv) * player_lifetime_days
+monthly_paying_users = (dau * real_conv) * 30
 gross_robux_donates = monthly_paying_users * real_arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
 # 2. РАСЧЕТ CREATOR REWARDS
-# Элитный фильтр: Active Spenders, прошедшие Behavioral Filter
 premium_pool = dau * vgu_ratio
 qualified_events_daily = premium_pool * behavioral_filter
 monthly_qualified_engagement = qualified_events_daily * 30
-rewards_from_engagement_robux = monthly_qualified_engagement * 6.0 # Среднее 6 R$
-
-# Переводим Часть А в USD через налог платформы и DevEx
+rewards_from_engagement_robux = monthly_qualified_engagement * 6.0 
 engagement_rewards_usd = (rewards_from_engagement_robux * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Часть Б: Affiliate Rewards (Исправленная когортная модель с учетом Decay)
-qualified_decay = 15.0 # Коэффициент учета overlap и окна выплат (вместо 30)
-monthly_qualified_users = dau * ae_percent * qualified_decay
-ae_payer_rate = 0.03 # Обновлено: 3% конверсия внутри qualified cohort
-affiliate_rewards_usd = monthly_qualified_users * ae_payer_rate * 15.0 * 0.35
+# Часть Б: Affiliate Rewards (используем user_new_input)
+monthly_qualified_users = user_new_input * 15.0
+affiliate_rewards_usd = monthly_qualified_users * 0.03 * 15.0 * 0.35 
 
-# Итоговый суммарный доход от Creator Rewards в долларах
 awards_bonus_usd = engagement_rewards_usd + affiliate_rewards_usd
 
 # Общие финансовые итоги симуляции
 total_gross_usd = net_usd_donates + awards_bonus_usd
-
 total_pool = total_gross_usd * (1.0 - tax_rate - reinvest_rate - marketing_rate)
 investor_payout_usd = total_pool * share if total_pool > 0 else 0
 clear_profit_usd = total_pool - investor_payout_usd
@@ -137,6 +134,8 @@ col1, col2, col3 = st.columns(3)
 col1.metric("Текущий онлайн (CCU)", f"{int(ccu):,}")
 col2.metric("Активные за день (DAU)", f"{int(dau):,}")
 col3.metric("Активные за месяц (MAU)", f"{int(mau):,}")
+
+st.info(f"🚀 Ежедневный приток для удержания: {int(required_new_users):,}")
 
 st.markdown("---")
 st.subheader("📊 Финансы (в месяц)")
