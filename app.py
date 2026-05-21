@@ -182,7 +182,7 @@ ax.axhline(0, color='#ff4b4b', lw=2, linestyle='--', alpha=0.6) # Линия н�
 # ОТОБРАЖЕНИЕ ТОЧКИ ROI
 if investor_payout_usd > 0:
     break_even_month = INVESTMENT / investor_payout_usd
-    ax.plot(break_even_month, 0, 'o', color='#ffffff', markersize=12, markeredgecolor='#00f2ff', label="Точка окупаемости")
+    ax.plot(break_even_month, 0, 'o', color="#583C3C", markersize=12, markeredgecolor='#00f2ff', label="Точка окупаемости")
     ax.annotate(f' ROI: {break_even_month:.1f} мес', xy=(break_even_month, 0), 
                 xytext=(break_even_month + 0.2, balance_timeline.max()/3),
                 color='#ffffff', fontsize=10, fontweight='bold',
