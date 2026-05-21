@@ -3,15 +3,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Настройки веб-страницы
-st.set_page_config(page_title="Abyss 99 Accurate Model v4.0", layout="wide")
+st.set_page_config(page_title="Abyss 99 Realistic Model v3.5", layout="wide")
 
-st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v4.0)")
-st.write("Модель исправлена: учтены прямые долларовые выплаты **35% Affiliate Share** за новичков.")
+st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v3.5)")
+st.write("Целевая сессия для вовлечения зафиксирована на **15 минутах**.")
 
 # Константы
 ROBLOX_TAX = 0.30
 INVESTMENT = 4500
 TARGET_SESSION = 15.0  
+
+# РЕАЛИСТИЧНЫЙ КУРС ИЗ ИССЛЕДОВАНИЯ: 15 R$ в час = 0.25 R$ в минуту
+PREMIUM_ROBUX_PER_MINUTE = 0.25  
 
 # --- ИНТЕРФЕЙС: БОКОВАЯ ПАНЕЛЬ ---
 st.sidebar.header("🎛️ Управление симуляцией")
@@ -33,13 +36,9 @@ if input_mode == "Ползунки":
     st.sidebar.text(f"📉 Расчетный D30: {d30_calc:.1f}%")
     st.sidebar.markdown("---")
 
-    base_conv = st.sidebar.slider("Базовая конверсия в донат (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
+    base_conv = st.sidebar.slider("Базовая конверсия (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
     base_arppu = st.sidebar.slider("Базовый чек донатера (R$):", 50, 2000, value=280, step=10)
-    
-    # БЛОК НАСТРОЕК CREATOR REWARDS
-    st.sidebar.subheader("💎 Creator Rewards")
-    vgu_ratio = st.sidebar.slider("Доля Active Spenders на платформе (%):", 0.5, 15.0, value=7.0, step=0.5) / 100.0
-    ae_percent = st.sidebar.slider("Audience Expansion (Qualified %):", 0.1, 5.0, value=1.0, step=0.1) / 100.0
+    premium_ratio = st.sidebar.slider("Доля Premium игроков (%):", 0.5, 15.0, value=7.0, step=0.5) / 100.0
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
@@ -64,16 +63,13 @@ else:
     st.sidebar.text(f"📉 Расчетный D30: {d30_calc:.1f}%")
     st.sidebar.markdown("---")
 
-    base_conv = st.sidebar.number_input("Базовая конверсия в донат (%):", 0.0, 100.0, value=2.5, step=0.1) / 100.0
+    base_conv = st.sidebar.number_input("Базовая конверсия (%):", 0.0, 100.0, value=2.5, step=0.1) / 100.0
     base_arppu = st.sidebar.number_input("Базовый чек донатера (R$):", 0, 100000, value=280, step=50)
-    
-    st.sidebar.subheader("💎 Creator Rewards")
-    vgu_ratio = st.sidebar.number_input("Доля Active Spenders (%):", 0.0, 100.0, value=7.0, step=0.5) / 100.0
-    ae_percent = st.sidebar.number_input("Audience Expansion (Qualified %):", 0.1, 5.0, value=1.0, step=0.1) / 100.0
+    premium_ratio = st.sidebar.number_input("Доля Premium (%):", 0.0, 100.0, value=7.0, step=0.5) / 100.0
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
-        st.subheader("💰 Налоги, Курс and Распределение")
+        st.subheader("💰 Налоги, Курс и Распределение")
         devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 R$):", 0.0000, 0.0100, value=0.0035, step=0.0001, format="%.4f")
         tax_rate = st.sidebar.number_input("Налог на вывод (%):", 0, 100, value=6, step=1) / 100.0
         reinvest_rate = st.sidebar.number_input("Поддержка игры / Фонд развития (%):", 0, 100, value=15, step=5) / 100.0
@@ -90,7 +86,7 @@ dau = (ccu * 1440) / TARGET_SESSION if TARGET_SESSION > 0 else 0
 player_lifetime_days = 1 + sum([(d1/100.0) * (t ** -alpha) for t in range(2, 31)])
 mau = dau * (30 / player_lifetime_days) if player_lifetime_days > 0 else 0
 
-# Влияние длины сессии на монетизацию донатов
+# Влияние длины сессии исключительно на монетизацию донатов
 if session_time < TARGET_SESSION:
     session_mon_factor = (session_time / TARGET_SESSION) ** 1.2
 else:
@@ -99,32 +95,19 @@ else:
 real_conv = min(0.15, base_conv * (session_mon_factor ** 0.5))
 real_arppu = base_arppu * (session_mon_factor ** 0.7)
 
-# 1. Расчет внутриигровых донатов (Геймпассы, валюта)
+# Расчет донатов
 monthly_paying_users = (dau * real_conv) * player_lifetime_days
 gross_robux_donates = monthly_paying_users * real_arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# 2. РАСЧЕТ CREATOR REWARDS
-# Часть А: Daily Engagement Rewards (5 R$ за топ-3 запуск от Active Spender)
-daily_active_spenders = dau * vgu_ratio
-top3_filter_ratio = 0.015  # Консервативные 1.5% прохождения фильтра топ-3 за сутки
-monthly_qualified_engagement = (daily_active_spenders * top3_filter_ratio) * 30
-rewards_from_engagement_robux = monthly_qualified_engagement * 5.0
+# КОНСЕРВАТИВНЫЙ РАСЧЕТ PREMIUM PAYOUTS (на основе 15 R$ в час)
+total_minutes_monthly = ccu * 60 * 24 * 30
+premium_minutes_monthly = total_minutes_monthly * premium_ratio
+gross_premium_robux = premium_minutes_monthly * PREMIUM_ROBUX_PER_MINUTE
+premium_bonus_usd = (gross_premium_robux * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Переводим Часть А в USD через налог платформы и DevEx
-engagement_rewards_usd = (rewards_from_engagement_robux * (1.0 - ROBLOX_TAX)) * devex_rate
-
-# Часть Б: Affiliate Rewards (Исправленная когортная модель с учетом Decay)
-qualified_decay = 15.0 # Коэффициент учета overlap и окна выплат (вместо 30)
-monthly_qualified_users = dau * ae_percent * qualified_decay
-ae_payer_rate = 0.04 # 4% конверсия внутри qualified cohort
-affiliate_rewards_usd = monthly_qualified_users * ae_payer_rate * 15.0 * 0.35
-
-# Итоговый суммарный доход от Creator Rewards в долларах
-awards_bonus_usd = engagement_rewards_usd + affiliate_rewards_usd
-
-# Общие финансовые итоги симуляции
-total_gross_usd = net_usd_donates + awards_bonus_usd
+# Общие финансовые итоги
+total_gross_usd = net_usd_donates + premium_bonus_usd
 
 total_pool = total_gross_usd * (1.0 - tax_rate - reinvest_rate - marketing_rate)
 investor_payout_usd = total_pool * share if total_pool > 0 else 0
@@ -139,15 +122,13 @@ col3.metric("Активные за месяц (MAU)", f"{int(mau):,}")
 st.markdown("---")
 st.subheader("📊 Финансы (в месяц)")
 f1, f2, f3, f4 = st.columns(4)
-f1.metric("Gross USD (Донаты + Creator Rewards)", f"${total_gross_usd:,.2f}")
+f1.metric("Gross USD (Донаты + Премиум)", f"${total_gross_usd:,.2f}")
 f2.metric("Чистая прибыль студии", f"${clear_profit_usd:,.2f}")
 f3.metric("Выплата инвестору", f"${investor_payout_usd:,.2f}")
 f4.metric("Срок ROI", f"{INVESTMENT/investor_payout_usd:.1f} мес" if investor_payout_usd > 0 else "∞")
 
-# Прозрачная плашка с точным разбором Creator Rewards
-st.info(f"ℹ️ Доход от Creator Rewards: ${awards_bonus_usd:,.2f} в месяц. "
-        f"(Из них Daily Engagement: ${engagement_rewards_usd:,.2f}; "
-        f"Прямой долларовый Affiliate бонус за новичков: ${affiliate_rewards_usd:,.2f})")
+# Прозрачная плашка с консервативным доходом от премиумов
+st.info(f"ℹ️ Консервативный чистый доход от Premium Payouts (~15 R$/час): ${premium_bonus_usd:,.2f} в месяц ({int(gross_premium_robux):,} R$)")
 
 # --- ГРАФИК ОКУПАЕМОСТИ ---
 st.markdown("---")
