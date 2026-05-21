@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Настройки веб-страницы
-st.set_page_config(page_title="Abyss 99 Accurate Model v4.0", layout="wide")
+st.set_page_config(page_title="Abyss 99 Ironclad Model v4.1", layout="wide")
 
-st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v4.0)")
-st.write("Модель исправлена: учтены прямые долларовые выплаты **35% Affiliate Share** за новичков.")
+st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v4.1)")
+st.write("Модель обновлена: заложена реалистичная воронка конверсии новичков для Creator Rewards.")
 
 # Константы
 ROBLOX_TAX = 0.30
@@ -71,7 +71,7 @@ else:
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
-        st.subheader("💰 Налоги, Курс and Распределение")
+        st.subheader("💰 Налоги, Курс и Распределение")
         devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 R$):", 0.0000, 0.0100, value=0.0035, step=0.0001, format="%.4f")
         tax_rate = st.sidebar.number_input("Налог на вывод (%):", 0, 100, value=6, step=1) / 100.0
         reinvest_rate = st.sidebar.number_input("Поддержка игры / Фонд развития (%):", 0, 100, value=15, step=5) / 100.0
@@ -102,7 +102,7 @@ monthly_paying_users = (dau * real_conv) * player_lifetime_days
 gross_robux_donates = monthly_paying_users * real_arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# 2. РАСЧЕТ CREATOR REWARDS
+# 2. РАСЧЕТ CREATOR REWARDS (Daily Engagement + Реалистичный Affiliate)
 # Часть А: Daily Engagement Rewards (5 R$ за топ-3 запуск от Active Spender)
 daily_active_spenders = dau * vgu_ratio
 top3_filter_ratio = 0.015  # Консервативные 1.5% прохождения фильтра топ-3 за сутки
@@ -112,12 +112,21 @@ rewards_from_engagement_robux = monthly_qualified_engagement * 5.0
 # Переводим Часть А в USD через налог платформы и DevEx
 engagement_rewards_usd = (rewards_from_engagement_robux * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Часть Б: Affiliate Rewards (35% от первых $100 трат новых/вернувшихся юзеров = до $35 за человека ЧИСТЫМИ)
-# Берем ультраконсервативный процент камбэков/регистраций (0.01% от месячного трафика)
-new_or_returned_ratio = 0.0001  
-monthly_qualified_affiliates = mau * new_or_returned_ratio
-# Прямая выплата в USD от Roblox, без DevEx конвертации
-affiliate_rewards_usd = monthly_qualified_affiliates * 35.0
+# Часть Б: Affiliate Rewards (с учётом жёсткой воронки донатящих новичков)
+# Капает процент естественных новичков/камбэков (0.5% от MAU)
+new_or_returned_ratio = 0.005  
+monthly_total_affiliates = mau * new_or_returned_ratio
+
+# Жёсткий фильтр: донатить в сам Roblox начнёт только 1.5% из этих новых людей
+affiliate_pay_conv = 0.015  
+monthly_paying_affiliates = monthly_total_affiliates * affiliate_pay_conv
+
+# Сколько в среднем тратит один платящий новичок в Roblox ($40 из лимита в $100)
+average_platform_spend = 40.0  
+affiliate_share_per_payer = average_platform_spend * 0.35  # наша доля 35% в USD
+
+# Итоговый чистый долларовый профит по партнёрке (напрямую в USD, без DevEx)
+affiliate_rewards_usd = monthly_paying_affiliates * affiliate_share_per_payer
 
 # Итоговый суммарный доход от Creator Rewards в долларах
 awards_bonus_usd = engagement_rewards_usd + affiliate_rewards_usd
@@ -143,10 +152,10 @@ f2.metric("Чистая прибыль студии", f"${clear_profit_usd:,.2f}
 f3.metric("Выплата инвестору", f"${investor_payout_usd:,.2f}")
 f4.metric("Срок ROI", f"{INVESTMENT/investor_payout_usd:.1f} мес" if investor_payout_usd > 0 else "∞")
 
-# Прозрачная плашка с точным разбором Creator Rewards
-st.info(f"ℹ️ Доход от Creator Rewards: ${awards_bonus_usd:,.2f} в месяц. "
-        f"(Из них Daily Engagement: ${engagement_rewards_usd:,.2f}; "
-        f"Прямой долларовый Affiliate бонус за новичков: ${affiliate_rewards_usd:,.2f})")
+# Прозрачная плашка с точным и честным разбором Creator Rewards
+st.info(f"ℹ️ Чистый доход от программы Creator Rewards: ${awards_bonus_usd:,.2f} в месяц. "
+        f"(Из них Daily Engagement (5 R$): ${engagement_rewards_usd:,.2f}; "
+        f"Реалистичный 35% Affiliate бонус за новичков: ${affiliate_rewards_usd:,.2f})")
 
 # --- ГРАФИК ОКУПАЕМОСТИ ---
 st.markdown("---")
