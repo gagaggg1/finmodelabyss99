@@ -6,7 +6,6 @@ import numpy as np
 st.set_page_config(page_title="Abyss 99 Accurate Model v4.0", layout="wide")
 
 st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v4.0)")
-st.write("Модель исправлена: учтены прямые долларовые выплаты **35% Affiliate Share** за новичков.")
 
 # Константы
 ROBLOX_TAX = 0.30
