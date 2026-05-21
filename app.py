@@ -6,7 +6,7 @@ import numpy as np
 st.set_page_config(page_title="Abyss 99 Accurate Model v4.0", layout="wide")
 
 st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v4.0)")
-st.write("Модель: Ползунок AE работает независимо.")
+st.write("Модель исправлена: учтены прямые долларовые выплаты **35% Affiliate Share** за новичков.")
 
 # Константы
 ROBLOX_TAX = 0.30
@@ -29,6 +29,7 @@ if input_mode == "Ползунки":
     # БЛОК НАСТРОЕК CREATOR REWARDS
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.slider("Доля Active Spenders на платформе (%):", 0.5, 15.0, value=7.0, step=0.5) / 100.0
+    # НОВЫЙ ПОЛЗУНОК
     ae_percent = st.sidebar.slider("Процент пользователей Audience Expansion (%):", 0.1, 10.0, value=1.0, step=0.1) / 100.0
     
     st.sidebar.markdown("---")
@@ -48,6 +49,7 @@ else:
     
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.number_input("Доля Active Spenders (%):", 0.0, 100.0, value=7.0, step=0.5) / 100.0
+    # НОВЫЙ ПОЛЗУНОК
     ae_percent = st.sidebar.number_input("Процент пользователей Audience Expansion (%):", 0.1, 10.0, value=1.0, step=0.1) / 100.0
     
     st.sidebar.markdown("---")
@@ -73,7 +75,6 @@ else:
 real_conv = min(0.15, base_conv * (session_mon_factor ** 0.5))
 real_arppu = base_arppu * (session_mon_factor ** 0.7)
 
-# 1. Донаты
 monthly_paying_users = (dau * real_conv) * player_lifetime_days
 net_usd_donates = (monthly_paying_users * real_arppu * (1.0 - ROBLOX_TAX)) * devex_rate
 
@@ -82,8 +83,9 @@ daily_active_spenders = dau * vgu_ratio
 monthly_qualified_engagement = (daily_active_spenders * 0.015) * 30
 engagement_rewards_usd = (monthly_qualified_engagement * 5.0 * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Считаем Affiliate Rewards только через независимый ползунок
-affiliate_rewards_usd = (mau * ae_percent) * 35.0
+# Используем ae_percent вместо старого 0.0001
+monthly_qualified_affiliates = mau * ae_percent
+affiliate_rewards_usd = monthly_qualified_affiliates * 35.0
 
 awards_bonus_usd = engagement_rewards_usd + affiliate_rewards_usd
 total_gross_usd = net_usd_donates + awards_bonus_usd
