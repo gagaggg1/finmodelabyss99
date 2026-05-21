@@ -11,7 +11,7 @@ st.write("Целевая сессия для вовлечения пересмо
 # Константы
 ROBLOX_TAX = 0.30
 INVESTMENT = 4500
-TARGET_SESSION = 15.0  # НОВЫЙ ЛИМИТ
+TARGET_SESSION = 15.0  # ЦЕЛЕВОЙ ЛИМИТ
 
 # --- ИНТЕРФЕЙС: БОКОВАЯ ПАНЕЛЬ ---
 st.sidebar.header("🎛️ Управление симуляцией")
@@ -54,26 +54,41 @@ else:
         marketing_rate = st.sidebar.number_input("Маркетинг (%):", 0, 100, value=10, step=5) / 100.0
         share = st.sidebar.number_input("Доля инвестора (%):", 0, 100, value=35, step=5) / 100.0
 
-# --- ЯДРО РАСЧЕТОВ (ТВОЙ ОРИГИНАЛЬНЫЙ КОД) ---
-retention_factor = (session_time / TARGET_SESSION) ** 2 if session_time < TARGET_SESSION else min(1.15, 1.0 + (session_time - TARGET_SESSION) / 100.0)
+# --- ЯДРО РАСЧЕТОВ ---
+# 1. Трафик завязан на TARGET_SESSION, чтобы изменение длины сессии не ломало объемы DAU/MAU
+dau = (ccu * 1440) / TARGET_SESSION if TARGET_SESSION > 0 else 0
+
+# Retention с удержанием лимита
+retention_factor = (session_time / TARGET_SESSION) ** 1.5 if session_time < TARGET_SESSION else min(1.2, 1.0 + (session_time - TARGET_SESSION) / 120.0)
 d1 = max(0.0, min(base_d1 * retention_factor, 75.0))
 alpha = 0.55
 player_lifetime_days = 1 + sum([(d1/100.0) * (t ** -alpha) for t in range(2, 31)])
 
-dau = (ccu * 1440) / session_time if session_time > 0 else 0
 mau = dau * (30 / player_lifetime_days) if player_lifetime_days > 0 else 0
 
-session_mon_factor = max(0.02, min(1.0, session_time / TARGET_SESSION))
-retention_mon_factor = max(0.1, min(1.0, d1 / base_d1)) if base_d1 > 0 else 0.1
-real_conv = base_conv * session_mon_factor * retention_mon_factor
-real_arppu = base_arppu * session_mon_factor
+# 2. Плавный и реалистичный рост монетизации от длины сессии (степенные коэффициенты)
+# Если сессия < 15 мин — плавно штрафуем. Если > 15 мин — даем адекватный прирост (с корнем, без бесконечного взлета)
+if session_time < TARGET_SESSION:
+    session_mon_factor = (session_time / TARGET_SESSION) ** 1.2
+else:
+    session_mon_factor = 1.0 + ((session_time - TARGET_SESSION) / TARGET_SESSION) ** 0.6
 
+retention_mon_factor = max(0.1, min(1.2, d1 / base_d1)) if base_d1 > 0 else 0.1
+
+# Финальная конверсия и чек зависят от времени в игре
+real_conv = min(0.15, base_conv * (session_mon_factor ** 0.5) * retention_mon_factor)
+real_arppu = base_arppu * (session_mon_factor ** 0.7)
+
+# Финансы
 monthly_paying_users = (dau * real_conv) * player_lifetime_days
 gross_robux_donates = monthly_paying_users * real_arppu
+
+# Premium-выплаты (напрямую масштабируются от суммарного времени сессий)
 premium_bonus_usd = ((dau * premium_ratio) * session_time * 30) * 0.00015 * (d1 / 100.0)
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 total_gross_usd = net_usd_donates + premium_bonus_usd
 
+# Распределение прибыли
 total_pool = total_gross_usd * (1.0 - tax_rate - reinvest_rate - marketing_rate)
 investor_payout_usd = total_pool * share if total_pool > 0 else 0
 clear_profit_usd = total_pool - investor_payout_usd
@@ -98,7 +113,6 @@ st.subheader("📉 Динамика возврата инвестиций (Ба�
 
 fig, ax = plt.subplots(figsize=(10, 3.5))
 
-# Динамический расчет баланса по месяцам (от 0 до 6 месяцев)
 months = np.arange(0, 7)
 balance_timeline = -INVESTMENT + (investor_payout_usd * months)
 
