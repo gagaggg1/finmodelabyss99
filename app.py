@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Настройки веб-страницы
-st.set_page_config(page_title="Abyss 99 Realistic Model v3.4", layout="wide")
+st.set_page_config(page_title="Abyss 99 Realistic Model v3.5", layout="wide")
 
-st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v3.4)")
+st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v3.5)")
 st.write("Целевая сессия для вовлечения зафиксирована на **15 минутах**.")
 
 # Константы
@@ -38,12 +38,12 @@ if input_mode == "Ползунки":
 
     base_conv = st.sidebar.slider("Базовая конверсия (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
     base_arppu = st.sidebar.slider("Базовый чек донатера (R$):", 50, 2000, value=280, step=10)
-    devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 R$):", 0.0010, 0.0100, value=0.0035, step=0.0001, format="%.4f")
     premium_ratio = st.sidebar.slider("Доля Premium игроков (%):", 0.5, 15.0, value=7.0, step=0.5) / 100.0
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
-        st.subheader("💰 Налоги и Распределение")
+        st.subheader("💰 Налоги, Курс и Распределение")
+        devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 R$):", 0.0010, 0.0100, value=0.0035, step=0.0001, format="%.4f")
         tax_rate = st.sidebar.slider("Налог на вывод (%):", 0, 20, value=6, step=1) / 100.0
         reinvest_rate = st.sidebar.slider("Поддержка игры / Фонд развития (%):", 0, 50, value=15, step=5) / 100.0
         marketing_rate = st.sidebar.slider("Маркетинг (%):", 0, 40, value=10, step=5) / 100.0
@@ -65,12 +65,12 @@ else:
 
     base_conv = st.sidebar.number_input("Базовая конверсия (%):", 0.0, 100.0, value=2.5, step=0.1) / 100.0
     base_arppu = st.sidebar.number_input("Базовый чек донатера (R$):", 0, 100000, value=280, step=50)
-    devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 R$):", 0.0000, 0.0100, value=0.0035, step=0.0001, format="%.4f")
     premium_ratio = st.sidebar.number_input("Доля Premium (%):", 0.0, 100.0, value=7.0, step=0.5) / 100.0
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
-        st.subheader("💰 Налоги и Распределение")
+        st.subheader("💰 Налоги, Курс и Распределение")
+        devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 R$):", 0.0000, 0.0100, value=0.0035, step=0.0001, format="%.4f")
         tax_rate = st.sidebar.number_input("Налог на вывод (%):", 0, 100, value=6, step=1) / 100.0
         reinvest_rate = st.sidebar.number_input("Поддержка игры / Фонд развития (%):", 0, 100, value=15, step=5) / 100.0
         marketing_rate = st.sidebar.number_input("Маркетинг (%):", 0, 100, value=10, step=5) / 100.0
