@@ -150,9 +150,25 @@ st.info(f"ℹ️ Доход от Creator Rewards: ${awards_bonus_usd:,.2f} в м
         f"(Из них Daily Engagement: ${engagement_rewards_usd:,.2f} ; "
         f"Прямой долларовый Affiliate бонус за новичков: ${affiliate_rewards_usd:,.2f})")
 
-# --- ГРАФИК ROI (% возврат инвестиций) ---
-months = np.arange(0, 7)
+# --- ГРАФИК ОКУПАЕМОСТИ ---
+st.markdown("---")
+st.subheader("📉 Динамика возврата инвестиций (Баланс инвестора)")
 
+fig, ax = plt.subplots(figsize=(10, 3.5))
+
+months = np.arange(0, 7)
+balance_timeline = -INVESTMENT + (investor_payout_usd * months)
+
+ax.plot(months, balance_timeline, color='#00ff41', marker='o', linewidth=2, label="Баланс инвестора ($)")
+ax.axhline(0, color='white', lw=1, linestyle='--')
+
+ax.set_xlabel("Месяцы после инвестирования")
+ax.set_ylabel("Текущий баланс ($)")
+ax.set_xticks(months)
+ax.grid(True, alpha=0.2)
+ax.legend()
+
+# --- ГРАФИК ROI (% возврат инвестиций) ---
 st.markdown("---")
 st.subheader("📈 ROI (возврат инвестиций %)")
 
@@ -174,5 +190,7 @@ ax2.set_ylabel("ROI (%)")
 ax2.set_xticks(months)
 ax2.grid(True, alpha=0.2)
 ax2.legend()
+
+st.pyplot(fig2)
 
 st.pyplot(fig)
