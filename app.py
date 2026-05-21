@@ -2,47 +2,51 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
 
+# ==========================================
 # --- НАСТРОЙКИ ВЕБ-СТРАНИЦЫ ---
-# Задаем конфигурацию отображения для широкого экрана
+# ==========================================
+# Устанавливаем параметры конфигурации для визуализации
 st.set_page_config(page_title="Abyss 99 Population Simulation v5.0", layout="wide")
 
-# --- ЗАГОЛОВОК ---
+# ==========================================
+# --- ЗАГОЛОВОК И ОПИСАНИЕ ---
+# ==========================================
 st.title("🐙 Симулятор популяции и бизнеса: «99 Ночей в Бездне» (v5.0)")
 st.write("Модель: Полная структура с учетом накопления базы (Натуральный MAU) и элитных фильтров.")
-st.write("Данная версия содержит развернутую логику расчетов для детальной аналитики.")
+st.write("Система теперь работает как открытый поток пользователей.")
 
-# --- КОНСТАНТЫ ---
-ROBLOX_TAX = 0.30       # Комиссия платформы Roblox при выводе
-INVESTMENT = 4500       # Первоначальные инвестиции в проект
-TARGET_SESSION = 15.0   # Целевая средняя длина сессии (в минутах)
+# ==========================================
+# --- КОНСТАНТЫ СИСТЕМЫ ---
+# ==========================================
+ROBLOX_TAX = 0.30       # Комиссия платформы при транзакции
+INVESTMENT = 4500       # Входной порог инвестиций
+TARGET_SESSION = 15.0   # Эталонная длина сессии для расчета
 
+# ==========================================
 # --- БОКОВАЯ ПАНЕЛЬ: УПРАВЛЕНИЕ ---
+# ==========================================
 st.sidebar.header("🚀 1. Acquisition Engine (Приток)")
 
-# Настройка притока новых пользователей
+# Параметры интенсивности притока пользователей
 new_users_daily = st.sidebar.slider("Новых игроков в день:", 10, 5000, value=200, step=10)
 
-# Настройка удержания (Retention)
+# Параметры удержания (кривая Retention)
 d1_input = st.sidebar.slider("D1 Retention (%):", 1.0, 75.0, value=32.0, step=1.0) / 100.0
 
 st.sidebar.header("🎯 2. Engagement & Filters")
 
-# Настройка длительности игровой сессии
+# Параметры вовлеченности аудитории
 session_time = st.sidebar.slider("Длина сессии (мин):", 1, 120, value=15, step=1)
-
-# Настройка элитного сегмента пользователей
 vgu_ratio = st.sidebar.slider("Доля Active Spenders (> $10) (%):", 0.1, 20.0, value=7.0, step=0.1) / 100.0
-
-# Настройка фильтрации поведенческого фактора
 behavioral_filter = st.sidebar.slider("Эффективность фильтра (10+ мин) (%):", 1.0, 50.0, value=12.0, step=0.5) / 100.0
 
-st.sidebar.header("💰 3. Экономика")
+st.sidebar.header("💰 3. Экономика проекта")
 
-# Настройка финансовых метрик конверсии
+# Параметры финансовой конверсии
 base_conv = st.sidebar.slider("Базовая конверсия (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
 base_arppu = st.sidebar.slider("ARPPU (R$):", 50, 2000, value=280, step=10)
 
-# Раздел налогов и распределения прибыли
+# Дополнительные настройки для финансового планирования
 st.sidebar.markdown("---")
 with st.sidebar.container():
     st.subheader("⚙️ Налоги и Распределение")
@@ -52,55 +56,56 @@ with st.sidebar.container():
     marketing_rate = st.sidebar.slider("Маркетинг (%):", 0, 40, value=10, step=5) / 100.0
     share = st.sidebar.slider("Доля инвестора (%):", 0, 100, value=35, step=5) / 100.0
 
-# --- ЯДРО РАСЧЕТОВ (Population Flow) ---
-alpha = 0.55  # Коэффициент затухания интереса
+# ==========================================
+# --- ЯДРО РАСЧЕТОВ (Population Engine) ---
+# ==========================================
+alpha = 0.55  # Коэффициент затухания (decay)
 days = np.arange(0, 30)
 
-# Расчет кривой удержания: вероятность того, что игрок, пришедший t дней назад, зашел сегодня
+# Вычисление кривой удержания по формуле затухания
 retention_curve = [1.0 if t == 0 else d1_input * (t ** -alpha) for t in days]
 
-# Натуральный MAU: сумма всех уникальных игроков за 30 дней
-# Это количество людей, которые реально активны в окне 30 дней
+# Расчет натурального MAU как суммы накопленных уникальных игроков
 natural_mau = new_users_daily * sum(retention_curve)
 
-# Расчет DAU: сумма тех, кто зашел сегодня из всех предыдущих волн притока
+# Расчет текущего DAU из потока пользователей
 current_dau = new_users_daily * sum(retention_curve)
 
-# Расчет CCU как производной от DAU и длины сессии
+# Вывод CCU через DAU и среднюю сессию
 ccu = (current_dau * session_time) / 1440
 
-# Расчет Required Capacity (нагрузка для инвестора)
-# Показывает необходимую емкость проекта для удержания такого уровня DAU
+# Расчет нагрузки (Required Capacity) для инвестора
 required_capacity = current_dau * (30 / (1 + sum([d1_input * (t ** -alpha) for t in range(1, 30)])))
 
-# Монетизация: Фактор длины сессии
+# Расчет коэффициента влияния сессии на донат
 if session_time > TARGET_SESSION:
     session_mon_factor = 1.0 + ((session_time - TARGET_SESSION) / TARGET_SESSION) ** 0.6
 else:
     session_mon_factor = (session_time / TARGET_SESSION) ** 1.2
 
-# Расчет эффективной конверсии и среднего чека
+# Расчет реальных метрик монетизации
 real_conv = min(0.15, base_conv * (session_mon_factor ** 0.5))
 real_arppu = base_arppu * (session_mon_factor ** 0.7)
 
-# Доходы: Прямые донаты (игроки)
+# Расчет доходов от внутриигровых покупок
 net_usd_donates = (current_dau * real_conv * real_arppu * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Доходы: Creator Rewards (Элитный пул)
+# Расчет Creator Rewards (Элитный пул Engagement)
 premium_pool = current_dau * vgu_ratio
 monthly_rewards_robux = (premium_pool * behavioral_filter * 30) * 6.0
 engagement_rewards_usd = (monthly_rewards_robux * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Итоговый валовый доход
+# Суммирование валового дохода
 total_gross_usd = net_usd_donates + engagement_rewards_usd
 
-# Расчет финансового пула инвестора и студии
+# Расчет чистой прибыли и выплат
 total_pool = total_gross_usd * (1.0 - tax_rate - reinvest_rate - marketing_rate)
 investor_payout_usd = total_pool * share if total_pool > 0 else 0
 clear_profit_usd = total_pool - investor_payout_usd
 
-# --- ВЫВОД ДАННЫХ НА ЭКРАН ---
-# Метрики популяции
+# ==========================================
+# --- ВИЗУАЛИЗАЦИЯ ДАННЫХ (Вывод) ---
+# ==========================================
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Новичков в день", f"{new_users_daily:,}")
 col2.metric("Натуральный MAU", f"{int(natural_mau):,}")
@@ -110,17 +115,18 @@ col4.metric("Результат CCU", f"{int(ccu):,}")
 st.markdown("---")
 st.subheader("📊 Финансовая модель (в месяц)")
 
-# Метрики финансов
 f1, f2, f3, f4 = st.columns(4)
 f1.metric("Gross USD", f"${total_gross_usd:,.2f}")
 f2.metric("Чистая прибыль", f"${clear_profit_usd:,.2f}")
 f3.metric("Выплата инвестору", f"${investor_payout_usd:,.2f}")
 f4.metric("Срок ROI", f"{INVESTMENT/investor_payout_usd:.1f} мес" if investor_payout_usd > 0 else "∞")
 
-# Блок информационной справки для пользователя
-st.info(f"ℹ️ Required Capacity (нагрузка для инвестора): {int(required_capacity):,}")
+# Блок с инфой о нагрузке системы
+st.info(f"ℹ️ Required Capacity (необходимая емкость для поддержания DAU): {int(required_capacity):,}")
 
+# ==========================================
 # --- ГРАФИК УДЕРЖАНИЯ ---
+# ==========================================
 st.markdown("---")
 st.subheader("📉 Волны удержания популяции")
 fig, ax = plt.subplots(figsize=(10, 4))
