@@ -184,7 +184,7 @@ if investor_payout_usd > 0:
                 color='#ffffff', fontsize=10, fontweight='bold',
                 bbox=dict(boxstyle="round,pad=0.3", fc="#00f2ff", ec="none", alpha=0.3))
 
-ax.set_xlabel("Месяцы после инвестирования")
+ax.set_xlabel("Время после релиза")
 ax.set_ylabel("Чистая прибыль инвестора ($)")
 ax.set_xticks(months)
 ax.grid(True, color='#333333', linestyle=':', alpha=0.6)
