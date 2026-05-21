@@ -92,9 +92,11 @@ d1 = d1_input / 100.0
 dau = (ccu * 1440) / TARGET_SESSION if TARGET_SESSION > 0 else 0
 
 # Жизненный цикл игрока и MAU
-retention_days_sum = 1 + sum([d1 * (t ** -alpha) for t in range(1, 30)])
-mau = int(user_new_input * retention_days_sum)
-required_new_users = dau / retention_days_sum
+player_lifetime_days = 1 + sum([(d1) * (t ** -alpha) for t in range(2, 31)])
+mau = dau * (30 / player_lifetime_days) if player_lifetime_days > 0 else 0
+# Интеграция расчета притока
+effective_lifetime = 1 + sum([d1 * (t ** -alpha) for t in range(1, 30)])
+required_new_users = dau * (1 / effective_lifetime)
 
 # Влияние длины сессии на монетизацию донатов
 if session_time < TARGET_SESSION:
@@ -106,7 +108,7 @@ real_conv = min(0.15, base_conv * (session_mon_factor ** 0.5))
 real_arppu = base_arppu * (session_mon_factor ** 0.7)
 
 # 1. Расчет внутриигровых донатов (Геймпассы, валюта)
-monthly_paying_users = (dau * real_conv) * 30
+monthly_paying_users = (dau * real_conv) * player_lifetime_days
 gross_robux_donates = monthly_paying_users * real_arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
