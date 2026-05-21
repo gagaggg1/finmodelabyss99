@@ -70,7 +70,7 @@ else:
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.number_input("Доля Active Spenders (%):", 0.0, 100.0, value=7.0, step=0.5) / 100.0
     behavioral_filter = st.sidebar.number_input("Эффективность фильтра (%):", 0.0, 100.0, value=12.0, step=0.5) / 100.0
-    ae_percent = st.sidebar.number_input("Audience Expansion (Qualified %):", 0.1, 5.0, value=1.0, step=0.1) / 100.0
+    ae_percent = st.sidebar.number_input("Audience Expansion :", 0.1, 5.0, value=1.0, step=0.1) / 100.0
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
