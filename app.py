@@ -170,6 +170,16 @@ balance_timeline = -INVESTMENT + (investor_payout_usd * months)
 ax.plot(months, balance_timeline, color='#00ff41', marker='o', linewidth=2, label="Баланс инвестора ($)")
 ax.axhline(0, color='white', lw=1, linestyle='--')
 
+# ОТОБРАЖЕНИЕ ТОЧКИ ROI
+if investor_payout_usd > 0:
+    break_even_month = INVESTMENT / investor_payout_usd
+    # Если точка в рамках графика (до 6 месяцев), рисуем её
+    if break_even_month <= 6:
+        ax.plot(break_even_month, 0, 'ro', markersize=10, label="Точка окупаемости")
+        ax.annotate(f'ROI: {break_even_month:.1f} мес', xy=(break_even_month, 0), 
+                    xytext=(break_even_month, balance_timeline.max()/4),
+                    arrowprops=dict(facecolor='white', shrink=0.05), color='white')
+
 ax.set_xlabel("Месяцы после инвестирования")
 ax.set_ylabel("Текущий баланс ($)")
 ax.set_xticks(months)
