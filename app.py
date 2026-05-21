@@ -10,7 +10,7 @@ st.title("🐙 Бизнес-модель: «99 Nights in the Abyss»")
 # Константы
 ROBLOX_TAX = 0.30
 INVESTMENT = 4500
-TARGET_SESSION = 15.0  
+TARGET_SESSION = 15.0  
 
 # --- ИНТЕРФЕЙС: БОКОВАЯ ПАНЕЛЬ ---
 st.sidebar.header("🎛️ Управление симуляцией")
@@ -138,6 +138,14 @@ col2.metric("Активные за день (DAU)", f"{int(dau):,}")
 col3.metric("Активные за месяц (MAU)", f"{int(mau):,}")
 
 st.markdown("---")
+# Блок метрик удержания
+st.subheader("📊 Метрики удержания")
+m1, m2, m3 = st.columns(3)
+m1.metric("D1 Retention", f"{d1_input:.1f}%")
+m2.metric("D7 Retention", f"{d7_calc:.1f}%")
+m3.metric("D30 Retention", f"{d30_calc:.1f}%")
+
+st.markdown("---")
 st.subheader("📊 Финансы (в месяц)")
 f1, f2, f3, f4 = st.columns(4)
 f1.metric("Gross USD (Донаты + Creator Rewards)", f"${total_gross_usd:,.2f}")
@@ -167,30 +175,5 @@ ax.set_ylabel("Текущий баланс ($)")
 ax.set_xticks(months)
 ax.grid(True, alpha=0.2)
 ax.legend()
-
-# --- ГРАФИК ROI (% возврат инвестиций) ---
-st.markdown("---")
-st.subheader("📈 ROI (возврат инвестиций %)")
-
-fig2, ax2 = plt.subplots(figsize=(10, 3.5))
-
-roi_timeline = []
-
-for m in months:
-    total_return = investor_payout_usd * m
-    roi_percent = ((total_return - INVESTMENT) / INVESTMENT) * 100
-    roi_timeline.append(roi_percent)
-
-ax2.plot(months, roi_timeline, color='cyan', marker='o', linewidth=2, label="ROI (%)")
-ax2.axhline(0, color='white', lw=1, linestyle='--')
-ax2.axhline(100, color='green', lw=1, linestyle='--', label="Break-even (100%)")
-
-ax2.set_xlabel("Месяцы после инвестирования")
-ax2.set_ylabel("ROI (%)")
-ax2.set_xticks(months)
-ax2.grid(True, alpha=0.2)
-ax2.legend()
-
-st.pyplot(fig2)
 
 st.pyplot(fig)
