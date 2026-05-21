@@ -3,28 +3,28 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Настройки веб-страницы
-st.set_page_config(page_title="Abyss 99 Accurate Model v4.0", layout="wide")
+st.set_page_config(page_title="Abyss 99 Accurate Model v5.0", layout="wide")
 
-st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v4.0)")
-st.write("Профессиональная симуляция экономики Roblox-проекта.")
+st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v5.0)")
+st.write("Математически согласованная модель: MAU адаптирован под высокий D1.")
 
-# --- ВВОД НОВЫХ ИГРОКОВ ---
+# --- БЛОК МАРКЕТИНГА И ПРИТОКА ---
 st.markdown("### 📈 Маркетинговые показатели")
 user_new_input = st.number_input("Введите количество новых игроков в день:", 1, 50000, value=200, step=10)
 
-# Константы
+# Константы модели
 ROBLOX_TAX = 0.30
 INVESTMENT = 4500
 TARGET_SESSION = 15.0  
 
-# --- ИНТЕРФЕЙС: БОКОВАЯ ПАНЕЛЬ ---
+# --- ИНТЕРФЕЙС: БОКОВАЯ ПАНЕЛЬ (РАСШИРЕННАЯ) ---
 st.sidebar.header("🎛️ Управление симуляцией")
-input_mode = st.sidebar.radio("Режим ввода:", ("Ползунки", "Ввод вручную"))
+input_mode = st.sidebar.radio("Режим ввода данных:", ("Ползунки", "Ввод вручную"))
 
 if input_mode == "Ползунки":
     ccu = st.sidebar.slider("Средний онлайн (CCU):", 10, 50000, value=500, step=50)
     session_time = st.sidebar.slider("Длина сессии (минут):", 1, 120, value=15, step=1)
-    d1_input = st.sidebar.slider("D1 Retention (%):", 10.0, 75.0, value=32.0, step=1.0)
+    d1_input = st.sidebar.slider("D1 Retention (%):", 10.0, 75.0, value=42.0, step=1.0)
     
     alpha = 0.55
     d7_calc = d1_input * (7 ** -alpha)
@@ -40,7 +40,7 @@ if input_mode == "Ползунки":
     
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.slider("Доля Active Spenders (%):", 0.5, 15.0, value=7.0, step=0.5) / 100.0
-    behavioral_filter = st.sidebar.slider("Эффективность фильтра (10+ мин) (%):", 1.0, 50.0, value=12.0, step=0.5) / 100.0
+    behavioral_filter = st.sidebar.slider("Эффективность фильтра (%):", 1.0, 50.0, value=12.0, step=0.5) / 100.0
     ae_percent = st.sidebar.slider("Audience Expansion (Qualified %):", 0.1, 5.0, value=1.0, step=0.1) / 100.0
     
     st.sidebar.markdown("---")
@@ -54,7 +54,7 @@ if input_mode == "Ползунки":
 else:
     ccu = st.sidebar.number_input("Средний онлайн (CCU):", 0, 100000, value=500, step=100)
     session_time = st.sidebar.number_input("Длина сессии (мин):", 1, 240, value=15, step=1)
-    d1_input = st.sidebar.number_input("D1 Retention (%):", 0.0, 100.0, value=32.0, step=1.0)
+    d1_input = st.sidebar.number_input("D1 Retention (%):", 0.0, 100.0, value=42.0, step=1.0)
     
     alpha = 0.55
     d7_calc = d1_input * (7 ** -alpha)
@@ -86,11 +86,11 @@ else:
 d1 = d1_input / 100.0
 dau = (ccu * 1440) / TARGET_SESSION if TARGET_SESSION > 0 else 0
 
-# Расчет удержания
+# Расчет жизненного цикла и MAU
 retention_days_sum = 1 + sum([d1 * (t ** -alpha) for t in range(1, 30)])
 
-# ДИНАМИЧЕСКИЙ MAU: (Коэффициент базы DAU) + (Активные новички)
-mau = int((dau * 1.8) + (user_new_input * retention_days_sum)) 
+# ЧЕСТНЫЙ MAU: учитывает реальное накопленное удержание
+mau = int((dau * (retention_days_sum / 30)) + (user_new_input * retention_days_sum))
 required_new_users = dau / retention_days_sum
 
 # Влияние длины сессии на монетизацию
@@ -102,15 +102,14 @@ else:
 real_conv = min(0.15, base_conv * (session_mon_factor ** 0.5))
 real_arppu = base_arppu * (session_mon_factor ** 0.7)
 
-# 1. Расчет донатов
+# 1. Доход от донатов (Внутриигровые покупки)
 monthly_paying_users = (dau * real_conv) * 30
 gross_robux_donates = monthly_paying_users * real_arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# 2. РАСЧЕТ CREATOR REWARDS (От DAU)
+# 2. РАСЧЕТ CREATOR REWARDS (Engagement)
 premium_pool = dau * vgu_ratio
-qualified_events_daily = premium_pool * behavioral_filter
-monthly_qualified_engagement = qualified_events_daily * 30
+monthly_qualified_engagement = (premium_pool * behavioral_filter) * 30
 rewards_from_engagement_robux = monthly_qualified_engagement * 6.0 
 engagement_rewards_usd = (rewards_from_engagement_robux * (1.0 - ROBLOX_TAX)) * devex_rate
 
@@ -120,38 +119,39 @@ affiliate_rewards_usd = monthly_qualified_users * 0.03 * 15.0 * 0.35
 
 awards_bonus_usd = engagement_rewards_usd + affiliate_rewards_usd
 
-# Итоги
+# Общие финансовые итоги
 total_gross_usd = net_usd_donates + awards_bonus_usd
 total_pool = total_gross_usd * (1.0 - tax_rate - reinvest_rate - marketing_rate)
 investor_payout_usd = total_pool * share if total_pool > 0 else 0
 clear_profit_usd = total_pool - investor_payout_usd
 
-# --- ВЫВОД ДАННЫХ ---
+# --- ВЫВОД РЕЗУЛЬТАТОВ ---
 col1, col2, col3 = st.columns(3)
 col1.metric("Текущий онлайн (CCU)", f"{int(ccu):,}")
 col2.metric("Активные за день (DAU)", f"{int(dau):,}")
 col3.metric("Активные за месяц (MAU)", f"{int(mau):,}")
 
-st.info(f"🚀 Ежедневный приток для удержания: {int(required_new_users):,}")
+st.info(f"🚀 Ежедневный приток для удержания базы: {int(required_new_users):,}")
 st.markdown("---")
 
-st.subheader("📊 Финансы (в месяц)")
+st.subheader("📊 Финансовые показатели (в месяц)")
 f1, f2, f3, f4 = st.columns(4)
 f1.metric("Gross USD", f"${total_gross_usd:,.2f}")
-f2.metric("Чистая прибыль", f"${clear_profit_usd:,.2f}")
+f2.metric("Чистая прибыль студии", f"${clear_profit_usd:,.2f}")
 f3.metric("Выплата инвестору", f"${investor_payout_usd:,.2f}")
-f4.metric("Срок ROI", f"{INVESTMENT/investor_payout_usd:.1f} мес" if investor_payout_usd > 0 else "∞")
+f4.metric("Срок окупаемости (ROI)", f"{INVESTMENT/investor_payout_usd:.1f} мес" if investor_payout_usd > 0 else "∞")
 
-st.info(f"ℹ️ Доход от Creator Rewards: ${awards_bonus_usd:,.2f} в месяц. "
-        f"(Engagement: ${engagement_rewards_usd:,.2f}; Affiliate бонус (DAU+New): ${affiliate_rewards_usd:,.2f})")
+st.info(f"ℹ️ Детализация Creator Rewards: ${awards_bonus_usd:,.2f} в месяц. "
+        f"(Engagement: ${engagement_rewards_usd:,.2f}; Affiliate бонус: ${affiliate_rewards_usd:,.2f})")
 
-# --- ГРАФИК ---
+# --- ГРАФИК ОКУПАЕМОСТИ ---
 st.markdown("---")
-st.subheader("📉 Динамика возврата инвестиций (Баланс инвестора)")
-fig, ax = plt.subplots(figsize=(10, 3.5))
+st.subheader("📈 График накопленной прибыли инвестора")
+fig, ax = plt.subplots(figsize=(10, 4))
 months = np.arange(0, 7)
-ax.plot(months, -INVESTMENT + (investor_payout_usd * months), color='#00ff41', marker='o', linewidth=2, label="Баланс ($)")
+ax.plot(months, -INVESTMENT + (investor_payout_usd * months), color='#00ff41', marker='o', linewidth=2.5, label="Баланс ($)")
 ax.axhline(0, color='white', lw=1, linestyle='--')
-ax.set_xlabel("Месяцы после инвестирования")
-ax.grid(True, alpha=0.2)
+ax.set_xlabel("Месяцы после старта")
+ax.set_ylabel("Баланс инвестора ($)")
+ax.grid(True, alpha=0.3)
 st.pyplot(fig)
