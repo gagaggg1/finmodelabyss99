@@ -8,6 +8,9 @@ st.set_page_config(page_title="Abyss 99 Accurate Model v4.0", layout="wide")
 st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v4.0)")
 st.write("Модель исправлена: учтены прямые долларовые выплаты **35% Affiliate Share** за новичков.")
 
+# --- НОВАЯ ПЛАШКА ВВОДА ---
+user_new_input = st.number_input("Введите количество новых игроков в день:", 1, 50000, value=200, step=10)
+
 # Константы
 ROBLOX_TAX = 0.30
 INVESTMENT = 4500
@@ -116,8 +119,8 @@ monthly_qualified_engagement = qualified_events_daily * 30
 rewards_from_engagement_robux = monthly_qualified_engagement * 6.0 
 engagement_rewards_usd = (rewards_from_engagement_robux * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Часть Б: Affiliate Rewards
-monthly_qualified_users = dau * ae_percent * 15.0
+# Часть Б: Affiliate Rewards (используем user_new_input)
+monthly_qualified_users = user_new_input * 15.0
 affiliate_rewards_usd = monthly_qualified_users * 0.03 * 15.0 * 0.35 
 
 awards_bonus_usd = engagement_rewards_usd + affiliate_rewards_usd
