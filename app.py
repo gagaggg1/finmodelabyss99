@@ -151,6 +151,8 @@ st.info(f"ℹ️ Доход от Creator Rewards: ${awards_bonus_usd:,.2f} в м
         f"Прямой долларовый Affiliate бонус за новичков: ${affiliate_rewards_usd:,.2f})")
 
 # --- ГРАФИК ROI (% возврат инвестиций) ---
+months = np.arange(0, 7)
+
 st.markdown("---")
 st.subheader("📈 ROI (возврат инвестиций %)")
 
