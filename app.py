@@ -32,6 +32,7 @@ if input_mode == "Ползунки":
     st.sidebar.text(f"📉 Расчетный D30: {d30_calc:.1f}%")
     st.sidebar.markdown("---")
 
+    st.sidebar.subheader("💸 Монетизация")
     base_conv = st.sidebar.slider("Конверсия доната (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
     base_arppu = st.sidebar.slider("Средний чек (R$):", 50, 2000, value=280, step=10)
     
@@ -62,7 +63,7 @@ else:
     st.sidebar.text(f"📊 Зафиксированный D1: {d1_input:.1f}%")
     st.sidebar.text(f"📈 Расчетный D7: {d7_calc:.1f}%")
     st.sidebar.text(f"📉 Расчетный D30: {d30_calc:.1f}%")
-
+    st.sidebar.markdown("---")
 
     st.sidebar.subheader("💸 Монетизация")
     base_conv = st.sidebar.slider("Конверсия доната (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
