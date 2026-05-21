@@ -39,7 +39,7 @@ if input_mode == "Ползунки":
     # БЛОК НАСТРОЕК CREATOR REWARDS
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.slider("Доля Active Spenders на платформе (%):", 0.5, 15.0, value=7.0, step=0.5) / 100.0
-    ae_percent = st.sidebar.slider("Audience Expansion (% DAU):", 0.1, 10.0, value=1.0, step=0.1) / 100.0
+    ae_percent = st.sidebar.slider("Audience Expansion (Qualified %):", 0.1, 5.0, value=1.0, step=0.1) / 100.0
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
@@ -69,7 +69,7 @@ else:
     
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.number_input("Доля Active Spenders (%):", 0.0, 100.0, value=7.0, step=0.5) / 100.0
-    ae_percent = st.sidebar.number_input("Audience Expansion (% DAU):", 0.1, 10.0, value=1.0, step=0.1) / 100.0
+    ae_percent = st.sidebar.number_input("Audience Expansion (Qualified %):", 0.1, 5.0, value=1.0, step=0.1) / 100.0
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
@@ -114,10 +114,10 @@ rewards_from_engagement_robux = monthly_qualified_engagement * 5.0
 # Переводим Часть А в USD через налог платформы и DevEx
 engagement_rewards_usd = (rewards_from_engagement_robux * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Часть Б: Affiliate Rewards (35% от первых $100 трат новых/вернувшихся юзеров = до $35 за человека ЧИСТЫМИ)
-# Revenue = Qualified Users (DAU * ae_percent) * Payer Rate(3%) * ARPPU($15) * 35%
-qualified_users = dau * ae_percent
-affiliate_rewards_usd = qualified_users * 0.03 * 15.0 * 0.35 * 30
+# Часть Б: Affiliate Rewards (Правильная когортная модель)
+monthly_qualified_users = dau * ae_percent * 30
+ae_payer_rate = 0.04 # 4% конверсия внутри qualified cohort
+affiliate_rewards_usd = monthly_qualified_users * ae_payer_rate * 15.0 * 0.35
 
 # Итоговый суммарный доход от Creator Rewards в долларах
 awards_bonus_usd = engagement_rewards_usd + affiliate_rewards_usd
