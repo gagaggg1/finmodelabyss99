@@ -2,18 +2,17 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
 
-# --- Настройки страницы ---
-st.set_page_config(page_title="Abyss 99 Accurate Model v7.0", layout="wide")
+# Настройки веб-страницы
+st.set_page_config(page_title="Abyss 99 Accurate Model v6.0", layout="wide")
 
-# --- Заголовок ---
-st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v7.0)")
-st.write("Профессиональная симуляция экономики Roblox-проекта с полным учетом метрик.")
+st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v6.0)")
+st.write("Профессиональная модель: динамическое управление Retention Curve (alpha).")
 
-# --- Блок ввода новых игроков ---
+# --- БЛОК МАРКЕТИНГА И ПРИТОКА ---
 st.markdown("### 📈 Маркетинговые показатели")
 user_new_input = st.number_input("Введите количество новых игроков в день:", 1, 50000, value=200, step=10)
 
-# --- Константы ---
+# Константы модели
 ROBLOX_TAX = 0.30
 INVESTMENT = 4500
 TARGET_SESSION = 15.0  
@@ -81,15 +80,16 @@ else:
 
 # --- ЯДРО РАСЧЕТОВ ---
 d1 = d1_input / 100.0
-# Возвращена классическая формула: DAU зависит от длины сессии
-dau = ccu * (1440 / session_time)
+dau = (ccu * 1440) / TARGET_SESSION if TARGET_SESSION > 0 else 0
+
+# Расчет Retention Sum через актуальную Alpha
 retention_days_sum = 1 + sum([d1 * (t ** -alpha) for t in range(1, 30)])
 
-# Расчет MAU (Честный)
+# ЧЕСТНЫЙ MAU: (DAU * коэффициент накопления) + (новые игроки * удержание)
 mau = int((dau * (retention_days_sum * 0.8)) + (user_new_input * retention_days_sum))
 required_new_users = dau / retention_days_sum
 
-# Влияние длины сессии на конверсию
+# Экономические множители
 if session_time < TARGET_SESSION:
     session_mon_factor = (session_time / TARGET_SESSION) ** 1.2
 else:
@@ -98,7 +98,6 @@ else:
 real_conv = min(0.15, base_conv * (session_mon_factor ** 0.5))
 real_arppu = base_arppu * (session_mon_factor ** 0.7)
 
-# --- ФИНАНСОВЫЕ БЛОКИ ---
 # 1. Донаты
 monthly_paying_users = (dau * real_conv) * 30
 gross_robux_donates = monthly_paying_users * real_arppu
@@ -116,7 +115,7 @@ affiliate_rewards_usd = monthly_qualified_users * 0.03 * 15.0 * 0.35
 
 awards_bonus_usd = engagement_rewards_usd + affiliate_rewards_usd
 
-# Итоговая прибыль
+# Итоги
 total_gross_usd = net_usd_donates + awards_bonus_usd
 total_pool = total_gross_usd * (1.0 - tax_rate - reinvest_rate - marketing_rate)
 investor_payout_usd = total_pool * share if total_pool > 0 else 0
@@ -138,7 +137,7 @@ f2.metric("Чистая прибыль студии", f"${clear_profit_usd:,.2f}
 f3.metric("Выплата инвестору", f"${investor_payout_usd:,.2f}")
 f4.metric("Срок окупаемости", f"{INVESTMENT/investor_payout_usd:.1f} мес" if investor_payout_usd > 0 else "∞")
 
-st.info(f"ℹ️ Детализация Creator Rewards: ${awards_bonus_usd:,.2f} в месяц. "
+st.info(f"ℹ️ Доход от Creator Rewards: ${awards_bonus_usd:,.2f}. "
         f"(Engagement: ${engagement_rewards_usd:,.2f}; Affiliate: ${affiliate_rewards_usd:,.2f})")
 
 # --- ГРАФИК ---
