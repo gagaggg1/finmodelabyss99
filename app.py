@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Настройки веб-страницы
-st.set_page_config(page_title="Abyss 99 Realistic Model v3.1", layout="wide")
+st.set_page_config(page_title="Abyss 99 Realistic Model v3.2", layout="wide")
 
-st.title("🐙 Реалистичная бизнес-модель: «99 Ночей в Бездне» (v3.1)")
+st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v3.2)")
 st.write("Целевая сессия для вовлечения пересмотрена до **15 минут**.")
 
 # Константы
@@ -30,7 +30,7 @@ if input_mode == "Ползунки":
     d7_calc = d1_calc * (7 ** -alpha)
     d30_calc = d1_calc * (30 ** -alpha)
     
-    # Блок удержания на левой панели (нельзя менять)
+    # Блок удержания на левой панели
     st.sidebar.text(f"📊 Текущий D1: {d1_calc:.1f}%")
     st.sidebar.text(f"📈 Расчетный D7: {d7_calc:.1f}%")
     st.sidebar.text(f"📉 Расчетный D30: {d30_calc:.1f}%")
@@ -100,8 +100,7 @@ monthly_paying_users = (dau * real_conv) * player_lifetime_days
 gross_robux_donates = monthly_paying_users * real_arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Справедливый расчет Premium Payouts на основе сгенерированных минут онлайна
-# (CCU * 60 мин * 24 часа * 30 дней) -> точное игровое время за месяц
+# Расчет Premium Payouts (на основе общего времени онлайна за месяц)
 total_minutes_monthly = ccu * 60 * 24 * 30
 premium_minutes_monthly = total_minutes_monthly * premium_ratio
 gross_premium_robux = premium_minutes_monthly * PREMIUM_ROBUX_PER_MINUTE
@@ -116,9 +115,9 @@ clear_profit_usd = total_pool - investor_payout_usd
 
 # --- ВЫВОД ДАННЫХ НА ЭКРАН ---
 col1, col2, col3 = st.columns(3)
-col1.metric("DAU", f"{int(dau):,}")
-col2.metric("MAU", f"{int(mau):,}")
-col3.metric("Финальный D1 Retention", f"{d1:.1f}%")
+col1.metric("Текущий онлайн (CCU)", f"{int(ccu):,}")
+col2.metric("Активные за день (DAU)", f"{int(dau):,}")
+col3.metric("Активные за месяц (MAU)", f"{int(mau):,}")
 
 st.markdown("---")
 st.subheader("📊 Финансы (в месяц)")
@@ -128,7 +127,7 @@ f2.metric("Чистая прибыль студии", f"${clear_profit_usd:,.2f}
 f3.metric("Выплата инвестору", f"${investor_payout_usd:,.2f}")
 f4.metric("Срок ROI", f"{INVESTMENT/investor_payout_usd:.1f} мес" if investor_payout_usd > 0 else "∞")
 
-# Дополнительная инфо-плашка для прозрачности бизнес-плана
+# Инфо-плашка для прозрачности премиум дохода
 st.info(f"ℹ️ В том числе чистый доход от Premium Payouts: ${premium_bonus_usd:,.2f} в месяц ({int(gross_premium_robux):,} R$)")
 
 # --- ГРАФИК ОКУПАЕМОСТИ ---
