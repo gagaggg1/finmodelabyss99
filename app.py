@@ -5,7 +5,7 @@ import numpy as np
 # Настройки веб-страницы
 st.set_page_config(page_title="Abyss 99 Accurate Model v4.0", layout="wide")
 
-st.title("🐙 Бизнес-модель: «99 Ночей в Бездне»")
+st.title("🐙 Бизнес-модель: «99 Nights in the Abyss»")
 
 # Константы
 ROBLOX_TAX = 0.30
