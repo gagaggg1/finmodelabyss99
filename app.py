@@ -6,9 +6,9 @@ import numpy as np
 st.set_page_config(page_title="Abyss 99 Business Model Pro", layout="wide")
 
 st.title("🐙 Бизнес-модель: «99 Ночей в Бездне»")
-st.write("Профессиональный расчет доходности. Исправлены скрытые продуктовые и финансовые зависимости.")
+st.write("Профессиональный расчет доходности с симуляцией трех уровней Retention (D1, D7, D30).")
 
-# Границы для ползунков
+# Границы для ползунков аудитории
 MIN_DAU, MAX_DAU = 1000, 5000000
 MIN_MAU, MAX_MAU = 10000, 50000000
 MIN_CCU, MAX_CCU = 10, 100000
@@ -20,11 +20,13 @@ INVESTMENT = 4500       # Стартовый капитал инвестора
 # 1. Инициализация базовых параметров в памяти (session_state)
 if "ccu_val" not in st.session_state: st.session_state["ccu_val"] = 500
 if "session_time" not in st.session_state: st.session_state["session_time"] = 35
-if "retention" not in st.session_state: st.session_state["retention"] = 10.0  
+if "retention_d1" not in st.session_state: st.session_state["retention_d1"] = 30.0  # Базовый D1
 
+# Производные значения, которые рассчитаются автоматически
 if "dau_val" not in st.session_state: st.session_state["dau_val"] = 20571
-if "mau_val" not in st.session_state: st.session_state["mau_val"] = 205714
+if "mau_val" not in st.session_state: st.session_state["mau_val"] = 250000
 
+# Экономика
 if "conv" not in st.session_state: st.session_state["conv"] = 2.0
 if "arppu" not in st.session_state: st.session_state["arppu"] = 250
 if "devex_rate" not in st.session_state: st.session_state["devex_rate"] = 0.0035
@@ -34,14 +36,34 @@ if "marketing_rate" not in st.session_state: st.session_state["marketing_rate"] 
 if "tax_rate" not in st.session_state: st.session_state["tax_rate"] = 6
 if "share" not in st.session_state: st.session_state["share"] = 35
 
-# 2. МАТЕМАТИЧЕСКИЕ КОЛБЭКИ
+# 2. МАТЕМАТИЧЕСКИЕ КОЛБЭКИ И ЗАВИСИМОСТИ RETENTION
+def calculate_retention_curve(d1_pct):
+    """Рассчитывает D7 и D30 на основе D1, используя степенной закон затухания (Power Law)"""
+    r1 = d1_pct / 100.0
+    if r1 <= 0:
+        return 0.0, 0.0, 0.0
+    # Вычисляем альфа (коэффициент затухания). 
+    # Стандарт для хорошего удержания: на 7-й день остается около 38-40% от зашедших в первый день.
+    alpha = 0.55 
+    
+    r7 = r1 * (7 ** -alpha)
+    r30 = r1 * (30 ** -alpha)
+    
+    # Расчет Lifetime (среднее количество дней, которое игрок проведет в игре за месяц)
+    # Приблизительный интеграл кривой удержания за 30 дней
+    lifetime_days = 1 + sum([r1 * (t ** -alpha) for t in range(2, 31)])
+    
+    return r7 * 100.0, r30 * 100.0, lifetime_days
+
 def sync_from_ccu():
     sess = st.session_state["session_time"]
     dau_calc = (st.session_state["ccu_val"] * 1440) / sess if sess > 0 else 0
     st.session_state["dau_val"] = max(MIN_DAU, min(int(dau_calc), MAX_DAU))
     
-    ret = st.session_state["retention"] / 100.0
-    mau_calc = st.session_state["dau_val"] * (2 - ret) * 5  
+    # Рассчитываем MAU на основе объёма DAU и липкости кривой удержания
+    _, _, lifetime = calculate_retention_curve(st.session_state["retention_d1"])
+    # Чем выше время жизни, тем больше уникальных игроков накапливается в рамках месяца
+    mau_calc = st.session_state["dau_val"] * (30 / lifetime) if lifetime > 0 else st.session_state["dau_val"] * 10
     st.session_state["mau_val"] = max(MIN_MAU, min(int(mau_calc), MAX_MAU))
 
 def sync_from_dau():
@@ -49,14 +71,13 @@ def sync_from_dau():
     ccu_calc = (st.session_state["dau_val"] * sess) / 1440
     st.session_state["ccu_val"] = max(MIN_CCU, min(int(ccu_calc), MAX_CCU))
     
-    ret = st.session_state["retention"] / 100.0
-    mau_calc = st.session_state["dau_val"] * (2 - ret) * 5
+    _, _, lifetime = calculate_retention_curve(st.session_state["retention_d1"])
+    mau_calc = st.session_state["dau_val"] * (30 / lifetime) if lifetime > 0 else st.session_state["dau_val"] * 10
     st.session_state["mau_val"] = max(MIN_MAU, min(int(mau_calc), MAX_MAU))
 
 def sync_from_mau():
-    mau_input = st.session_state["mau_val"]
-    ret = st.session_state["retention"] / 100.0
-    dau_calc = mau_input / ((2 - ret) * 5) if (2 - ret) * 5 > 0 else 0
+    _, _, lifetime = calculate_retention_curve(st.session_state["retention_d1"])
+    dau_calc = st.session_state["mau_val"] / (30 / lifetime) if lifetime > 0 else st.session_state["mau_val"] / 10
     st.session_state["dau_val"] = max(MIN_DAU, min(int(dau_calc), MAX_DAU))
     
     sess = st.session_state["session_time"]
@@ -67,6 +88,10 @@ if "init" not in st.session_state:
     sync_from_ccu()
     st.session_state["init"] = True
 
+# Динамически получаем связанные значения удержания для расчетов
+d1 = st.session_state["retention_d1"]
+d7, d30, player_lifetime = calculate_retention_curve(d1)
+
 # Панель управления
 st.sidebar.header("🎛️ Настройка переменных")
 input_mode = st.sidebar.radio("Режим ввода данных:", ("Ползунки", "Ввод вручную"))
@@ -75,12 +100,18 @@ st.sidebar.markdown("---")
 if input_mode == "Ползунки":
     st.sidebar.markdown("### 🎯 Главный показатель")
     st.sidebar.slider("Средний онлайн (CCU):", min_value=MIN_CCU, max_value=MAX_CCU, step=50, key="ccu_val", on_change=sync_from_ccu)
-    st.sidebar.markdown("### 🕒 Удержание и Вовлеченность")
-    st.sidebar.slider("Удержание игроков (Retention %):", min_value=5.0, max_value=40.0, step=0.5, format="%.1f", key="retention", on_change=sync_from_ccu)
+    
+    st.sidebar.markdown("### 🕒 Удержание (Retention)")
+    st.sidebar.slider("D1 Retention (Удержание 1-го дня %):", min_value=10.0, max_value=60.0, step=1.0, format="%.1f", key="retention_d1", on_change=sync_from_ccu)
+    
+    # Информационный вывод (D7 и D30 рассчитываются автоматически, их нельзя крутить наугад)
+    st.sidebar.info(f"📋 **Рассчитанные метрики:**\n* **D7 (Weekly):** {d7:.1f}%\n* **D30 (Monthly):** {d30:.1f}%\n* **Lifetime (Дней в игре):** {player_lifetime:.2f} дн.")
+    
     st.sidebar.slider("Длина сессии (минут):", min_value=5, max_value=120, step=5, key="session_time", on_change=sync_from_ccu)
     st.sidebar.markdown("### 👥 Зависимые метрики (Просмотр)")
     st.sidebar.slider("Игроков в день (DAU):", min_value=MIN_DAU, max_value=MAX_DAU, step=1000, key="dau_val", on_change=sync_from_dau)
     st.sidebar.slider("Игроков в месяц (MAU):", min_value=MIN_MAU, max_value=MAX_MAU, step=10000, key="mau_val", on_change=sync_from_mau)
+    
     st.sidebar.markdown("### 💎 Монетизация")
     st.sidebar.slider("Конверсия в донат (%):", min_value=0.1, max_value=10.0, step=0.1, format="%.1f", key="conv")
     st.sidebar.slider("Средний чек донатера (Robux):", min_value=10, max_value=2000, step=10, key="arppu")
@@ -93,8 +124,9 @@ if input_mode == "Ползунки":
 else:
     st.sidebar.markdown("### 🎯 Главный показатель")
     st.sidebar.number_input("Средний онлайн (CCU):", min_value=MIN_CCU, max_value=MAX_CCU, step=100, key="ccu_val", on_change=sync_from_ccu)
-    st.sidebar.markdown("### 🕒 Удержание и Вовлеченность")
-    st.sidebar.number_input("Удержание игроков (Retention %):", min_value=1.0, max_value=100.0, step=0.5, format="%.1f", key="retention", on_change=sync_from_ccu)
+    st.sidebar.markdown("### 🕒 Удержание (Retention)")
+    st.sidebar.number_input("D1 Retention (Удержание 1-го дня %):", min_value=1.0, max_value=100.0, step=0.5, format="%.1f", key="retention_d1", on_change=sync_from_ccu)
+    st.sidebar.info(f"📋 **Зависимые метрики:**\n* **D7 (Weekly):** {d7:.1f}%\n* **D30 (Monthly):** {d30:.1f}%\n* **Lifetime:** {player_lifetime:.2f} дн.")
     st.sidebar.number_input("Длина сессии (минут):", min_value=1, max_value=240, step=5, key="session_time", on_change=sync_from_ccu)
     st.sidebar.markdown("### 👥 Зависимые метрики")
     st.sidebar.number_input("Игроков в день (DAU):", min_value=0, max_value=MAX_DAU, step=1000, key="dau_val", on_change=sync_from_dau)
@@ -110,7 +142,6 @@ else:
     st.sidebar.number_input("Доля инвестора после ROI (%):", min_value=0, max_value=100, step=5, key="share")
 
 ccu = st.session_state["ccu_val"]
-retention_pct = st.session_state["retention"]
 session_time = st.session_state["session_time"]
 dau = st.session_state["dau_val"]
 mau = st.session_state["mau_val"]
@@ -124,23 +155,21 @@ marketing_rate = float(st.session_state["marketing_rate"]) / 100.0
 tax_rate = float(st.session_state["tax_rate"]) / 100.0
 share = float(st.session_state["share"]) / 100.0
 
-# --- РАСЧЕТЫ ЭКОНОМИКИ ДОХОДОВ (ИСПРАВЛЕНО) ---
-ret_factor = retention_pct / 10.0  
-
-# 1. Считаем чистый "грязный" объем покупок в Robux напрямую от транзакций игроков
+# --- РАСЧЕТЫ ЭКОНОМИКИ ДОХОДОВ ---
+# Донаты идут от ежедневного потока платящих игроков. Высокий D30/Lifetime увеличивает частоту транзакций.
 daily_paying_users = dau * conv
-monthly_transaction_volume = daily_paying_users * 30 * (1 + (ret_factor * 0.05)) # Умеренное влияние на частоту покупок
+monthly_transaction_volume = daily_paying_users * 30 * (1 + (d30 / 100.0)) 
 
 gross_robux_donates = monthly_transaction_volume * arppu
 
-# 2. Переводим Premium-выплаты из USD обратно в эквивалент Robux до налогов, чтобы сложить честный Gross Robux
-premium_bonus_usd = ccu * (session_time / 30.0) * (premium_ratio / 0.02) * (1 + ret_factor * 0.2)
+# Рассчитываем Premium выплаты (они завязаны на время сессий, объем Premium-игроков и удержание)
+premium_bonus_usd = ccu * (session_time / 30.0) * (premium_ratio / 0.02) * (1 + (d7 / 100.0))
 premium_bonus_robux_equivalent = premium_bonus_usd / devex_rate if devex_rate > 0 else 0
 
-# Истинный Gross Robux, который пользователи физически потратили в игре за месяц
+# Честный физический Gross оборот до налогов платформы
 total_gross_robux = gross_robux_donates + (premium_bonus_robux_equivalent / (1.0 - ROBLOX_TAX))
 
-# 3. Чистый доход в USD после комиссии платформы Roblox (30%)
+# Конвертация в доллары чистыми (вычитаем налог роблокса 30% с чистых покупок)
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 total_gross_usd = net_usd_donates + premium_bonus_usd
 
@@ -160,42 +189,49 @@ total_clear_profit_robux = total_clear_profit_usd / devex_rate if devex_rate > 0
 payout_step = investor_payout_usd
 roi_months = INVESTMENT / payout_step if payout_step > 0 else 99
 
-# --- ПРОДУКТОВЫЕ МЕТРИКИ (ИСПРАВЛЕНО) ---
-# Честный ARPU от полного Gross оборота игры
+# --- ПРОДУКТОВЫЕ МЕТРИКИ ---
 arpu_usd = total_gross_usd / mau if mau > 0 else 0
 arpu_robux = total_gross_robux / mau if mau > 0 else 0
 
-# Динамический Лайфтайм на основе Retention (чем выше удержание, тем выше множитель)
-# Базовый коэффициент удержания масштабирует ценность игрока
-player_lifetime_months = 1.0 + (retention_pct / 15.0) 
-ltv_usd = arpu_usd * player_lifetime_months  
-ltv_robux = arpu_robux * player_lifetime_months
+# Честный LTV привязан к рассчитанному Lifetime (времени жизни игрока в игре)
+# Базовый ARPU умножается на коэффициент месяцев жизни игрока
+lifetime_months = player_lifetime / 30.0
+ltv_usd = arpu_usd * (1 + lifetime_months)  
+ltv_robux = arpu_robux * (1 + lifetime_months)
 
 arpdau_usd = total_gross_usd / 30 / dau if dau > 0 else 0
 arpdau_robux = total_gross_robux / 30 / dau if dau > 0 else 0
 
 # --- ИНТЕРФЕЙС И ВЫВОД НА ЭКРАН ---
-st.subheader("🖥️ Динамические показатели аудитории")
+st.subheader("🖥️ Мониторинг вовлеченности аудитории")
 sys_col1, sys_col2, sys_col3 = st.columns(3)
-sys_col1.metric("Активный онлайн (CCU) 🔥", f"{ccu:,} чел.", help="Главная целевая метрика проекта.")
-sys_col2.metric("Дневная аудитория (DAU)", f"{dau:,} чел.", f"Retention: {retention_pct}%")
-sys_col3.metric("Месячная аудитория (MAU)", f"{mau:,} чел.", "Накопительная база с учетом удержания")
+sys_col1.metric("Активный онлайн (CCU) 🔥", f"{ccu:,} чел.")
+sys_col2.metric("Дневная аудитория (DAU)", f"{dau:,} чел.", f"D1 Retention: {d1:.1f}%")
+sys_col3.metric("Месячная аудитория (MAU)", f"{mau:,} чел.", f"Ежемесячный Sticky Factor: {int((dau/mau)*100) if mau > 0 else 0}%")
+
+# Информационные плашки по каскаду Retention
+st.markdown("##### Текущее состояние воронки удержания:")
+r_col1, r_col2, r_col3, r_col4 = st.columns(4)
+r_col1.info(f"**D1 (Daily):** {d1:.1f}%  \n*Первое впечатление*")
+r_col2.info(f"**D7 (Weekly):** {d7:.1f}%  \n*Глубина контента*")
+r_col3.info(f"**D30 (Monthly):** {d30:.1f}%  \n*Эндгейм и привычка*")
+r_col4.success(f"**Игрок живет в игре:**  \n⚡ **{player_lifetime:.2f} дней** за месяц")
 
 st.markdown("---")
 
 st.subheader("💰 Финансовые итоги проекта (в месяц)")
 col1, col2, col3, col4, col5 = st.columns(5)
-col1.metric("Общий оборот (Gross)", f"${total_gross_usd:,.2f}", f"R$ {int(total_gross_robux):,}", help="Суммарный оборот до вычета комиссий.")
+col1.metric("Общий оборот (Gross)", f"${total_gross_usd:,.2f}", f"R$ {int(total_gross_robux):,}")
 col2.metric("Фонд обновлений", f"${reinvestment_usd:,.2f}", f"R$ {int(reinvestment_usd / devex_rate):,}")
 col3.metric("Траты на маркетинг", f"${marketing_usd:,.2f}", f"R$ {int(marketing_usd / devex_rate):,}", delta_color="inverse")
-col4.metric("Чистая прибыль студии", f"${total_clear_profit_usd:,.2f}", f"R$ {int(total_clear_profit_robux):,}", help="Доход разработчиков за вычетом доли инвестора.")
+col4.metric("Чистая прибыль студии", f"${total_clear_profit_usd:,.2f}", f"R$ {int(total_clear_profit_robux):,}")
 col5.metric("Чистый доход инвестора", f"${investor_payout_usd:,.2f}", f"R$ {int(investor_payout_robux):,}")
 
 st.markdown("---")
 
 st.subheader("📊 Продуктовые метрики")
 m_col1, m_col2, m_col3 = st.columns(3)
-m_col1.metric("Ценность игрока (LTV)", f"${ltv_usd:.4f}", f"R$ {ltv_robux:.2f}", help="Рассчитывается динамически на основе удержания.")
+m_col1.metric("Ценность игрока (LTV)", f"${ltv_usd:.4f}", f"R$ {ltv_robux:.2f}", help="Динамически масштабируется от Lifetime игрока.")
 m_col2.metric("Доход с активного в день (ARPDAU)", f"${arpdau_usd:.4f}", f"R$ {arpdau_robux:.2f}")
 
 if roi_months <= 1:
