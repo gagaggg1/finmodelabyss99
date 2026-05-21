@@ -22,6 +22,20 @@ if input_mode == "Ползунки":
     ccu = st.sidebar.slider("Средний онлайн (CCU):", 10, 50000, value=500, step=50)
     session_time = st.sidebar.slider("Длина сессии (минут):", 1, 120, value=15, step=1)
     base_d1 = st.sidebar.slider("Базовый D1 Retention (%):", 10.0, 60.0, value=32.0, step=1.0)
+    
+    # Расчёт динамических коэффициентов для вывода в сайдбар
+    retention_factor = (session_time / TARGET_SESSION) ** 1.5 if session_time < TARGET_SESSION else min(1.2, 1.0 + (session_time - TARGET_SESSION) / 120.0)
+    d1_calc = max(0.0, min(base_d1 * retention_factor, 75.0))
+    alpha = 0.55
+    d7_calc = d1_calc * (7 ** -alpha)
+    d30_calc = d1_calc * (30 ** -alpha)
+    
+    # Информационный блок долгосрочного удержания (слева на панели)
+    st.sidebar.text(f"📊 Текущий D1: {d1_calc:.1f}%")
+    st.sidebar.text(f"📈 Расчетный D7: {d7_calc:.1f}%")
+    st.sidebar.text(f"📉 Расчетный D30: {d30_calc:.1f}%")
+    st.sidebar.markdown("---")
+
     base_conv = st.sidebar.slider("Базовая конверсия (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
     base_arppu = st.sidebar.slider("Базовый чек донатера (R$):", 50, 2000, value=280, step=10)
     devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 R$):", 0.0010, 0.0100, value=0.0035, step=0.0001, format="%.4f")
@@ -40,6 +54,20 @@ else:
     ccu = st.sidebar.number_input("Средний онлайн (CCU):", 0, 100000, value=500, step=100)
     session_time = st.sidebar.number_input("Длина сессии (мин):", 1, 240, value=15, step=1)
     base_d1 = st.sidebar.number_input("Базовый D1 Retention (%):", 0.0, 100.0, value=32.0, step=1.0)
+    
+    # Расчёт динамических коэффициентов для вывода в сайдбар (вручную)
+    retention_factor = (session_time / TARGET_SESSION) ** 1.5 if session_time < TARGET_SESSION else min(1.2, 1.0 + (session_time - TARGET_SESSION) / 120.0)
+    d1_calc = max(0.0, min(base_d1 * retention_factor, 75.0))
+    alpha = 0.55
+    d7_calc = d1_calc * (7 ** -alpha)
+    d30_calc = d1_calc * (30 ** -alpha)
+    
+    # Информационный блок долгосрочного удержания (слева на панели)
+    st.sidebar.text(f"📊 Текущий D1: {d1_calc:.1f}%")
+    st.sidebar.text(f"📈 Расчетный D7: {d7_calc:.1f}%")
+    st.sidebar.text(f"📉 Расчетный D30: {d30_calc:.1f}%")
+    st.sidebar.markdown("---")
+
     base_conv = st.sidebar.number_input("Базовая конверсия (%):", 0.0, 100.0, value=2.5, step=0.1) / 100.0
     base_arppu = st.sidebar.number_input("Базовый чек донатера (R$):", 0, 100000, value=280, step=50)
     devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 R$):", 0.0000, 0.0100, value=0.0035, step=0.0001, format="%.4f")
@@ -57,14 +85,10 @@ else:
 # --- ЯДРО РАСЧЕТОВ ---
 dau = (ccu * 1440) / TARGET_SESSION if TARGET_SESSION > 0 else 0
 
-# Retention D1 с удержанием лимита
-retention_factor = (session_time / TARGET_SESSION) ** 1.5 if session_time < TARGET_SESSION else min(1.2, 1.0 + (session_time - TARGET_SESSION) / 120.0)
-d1 = max(0.0, min(base_d1 * retention_factor, 75.0))
-alpha = 0.55
-
-# Математический расчет D7 и D30 на основе формулы затухания (закрыты от ручного изменения)
-d7 = d1 * (7 ** -alpha)
-d30 = d1 * (30 ** -alpha)
+# Подхватываем уже посчитанные выше значения для финального ядра
+d1 = d1_calc
+d7 = d7_calc
+d30 = d30_calc
 
 player_lifetime_days = 1 + sum([(d1/100.0) * (t ** -alpha) for t in range(2, 31)])
 mau = dau * (30 / player_lifetime_days) if player_lifetime_days > 0 else 0
@@ -92,24 +116,13 @@ total_pool = total_gross_usd * (1.0 - tax_rate - reinvest_rate - marketing_rate)
 investor_payout_usd = total_pool * share if total_pool > 0 else 0
 clear_profit_usd = total_pool - investor_payout_usd
 
-# --- ВЫВОД ДАННЫХ ---
-# Верхняя панель: Трафик
-col1, col2 = st.columns(2)
-col1.metric("DAU (Дневной онлайн)", f"{int(dau):,}")
-col2.metric("MAU (Месячный онлайн)", f"{int(mau):,}")
+# --- ВЫВОД ДАННЫХ НА ЭКРАН ---
+col1, col2, col3 = st.columns(3)
+col1.metric("DAU", f"{int(dau):,}")
+col2.metric("MAU", f"{int(mau):,}")
+col3.metric("Финальный D1 Retention", f"{d1:.1f}%")
 
 st.markdown("---")
-
-# Панель удерживаемых игроков (Retention)
-st.subheader("👥 Метрики удержания (Retention)")
-rd1, rd7, rd30 = st.columns(3)
-rd1.metric("D1 Retention", f"{d1:.1f}%")
-rd7.metric("D7 Retention (Расчетный)", f"{d7:.1f}%")
-rd30.metric("D30 Retention (Расчетный)", f"{d30:.1f}%")
-
-st.markdown("---")
-
-# Финансовая панель
 st.subheader("📊 Финансы (в месяц)")
 f1, f2, f3, f4 = st.columns(4)
 f1.metric("Gross USD", f"${total_gross_usd:,.2f}")
