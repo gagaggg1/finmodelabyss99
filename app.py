@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Настройки веб-страницы
-st.set_page_config(page_title="Abyss 99 Realistic Model v3.9", layout="wide")
+st.set_page_config(page_title="Abyss 99 Accurate Model v4.0", layout="wide")
 
-st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v3.9)")
-st.write("Модель обновлена по официальной спецификации **Roblox Creator Rewards**.")
+st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v4.0)")
+st.write("Модель исправлена: учтены прямые долларовые выплаты **35% Affiliate Share** за новичков.")
 
 # Константы
 ROBLOX_TAX = 0.30
@@ -36,7 +36,7 @@ if input_mode == "Ползунки":
     base_conv = st.sidebar.slider("Базовая конверсия в донат (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
     base_arppu = st.sidebar.slider("Базовый чек донатера (R$):", 50, 2000, value=280, step=10)
     
-    # БЛОК НАСТРОЕК CREATOR REWARDS (Бывшие Премиумы)
+    # БЛОК НАСТРОЕК CREATOR REWARDS
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.slider("Доля Active Spenders на платформе (%):", 0.5, 15.0, value=7.0, step=0.5) / 100.0
     
@@ -71,7 +71,7 @@ else:
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
-        st.subheader("💰 Налоги, Курс и Распределение")
+        st.subheader("💰 Налоги, Курс and Распределение")
         devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 R$):", 0.0000, 0.0100, value=0.0035, step=0.0001, format="%.4f")
         tax_rate = st.sidebar.number_input("Налог на вывод (%):", 0, 100, value=6, step=1) / 100.0
         reinvest_rate = st.sidebar.number_input("Поддержка игры / Фонд развития (%):", 0, 100, value=15, step=5) / 100.0
@@ -102,21 +102,25 @@ monthly_paying_users = (dau * real_conv) * player_lifetime_days
 gross_robux_donates = monthly_paying_users * real_arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# 2. РАСЧЕТ CREATOR REWARDS (Daily Engagement + Affiliate Rewards)
+# 2. РАСЧЕТ CREATOR REWARDS
 # Часть А: Daily Engagement Rewards (5 R$ за топ-3 запуск от Active Spender)
 daily_active_spenders = dau * vgu_ratio
-top3_filter_ratio = 0.032  # Подняли до 3.2% для удержания планки баланса на 1000 CCU
+top3_filter_ratio = 0.015  # Консервативные 1.5% прохождения фильтра топ-3 за сутки
 monthly_qualified_engagement = (daily_active_spenders * top3_filter_ratio) * 30
 rewards_from_engagement_robux = monthly_qualified_engagement * 5.0
 
-# Часть Б: Affiliate Rewards (35 R$ за новых/вернувшихся игроков)
-new_or_returned_ratio = 0.0005  # Реалистичные 0.05% от общего месячного потока
-monthly_qualified_affiliates = mau * new_or_returned_ratio
-rewards_from_affiliates_robux = monthly_qualified_affiliates * 35.0
+# Переводим Часть А в USD через налог платформы и DevEx
+engagement_rewards_usd = (rewards_from_engagement_robux * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Итоговый суммарный доход от Creator Rewards с учетом налогов и DevEx
-gross_rewards_robux = rewards_from_engagement_robux + rewards_from_affiliates_robux
-awards_bonus_usd = (gross_rewards_robux * (1.0 - ROBLOX_TAX)) * devex_rate
+# Часть Б: Affiliate Rewards (35% от первых $100 трат новых/вернувшихся юзеров = до $35 за человека ЧИСТЫМИ)
+# Берем ультраконсервативный процент камбэков/регистраций (0.01% от месячного трафика)
+new_or_returned_ratio = 0.0001  
+monthly_qualified_affiliates = mau * new_or_returned_ratio
+# Прямая выплата в USD от Roblox, без DevEx конвертации
+affiliate_rewards_usd = monthly_qualified_affiliates * 35.0
+
+# Итоговый суммарный доход от Creator Rewards в долларах
+awards_bonus_usd = engagement_rewards_usd + affiliate_rewards_usd
 
 # Общие финансовые итоги симуляции
 total_gross_usd = net_usd_donates + awards_bonus_usd
@@ -139,8 +143,10 @@ f2.metric("Чистая прибыль студии", f"${clear_profit_usd:,.2f}
 f3.metric("Выплата инвестору", f"${investor_payout_usd:,.2f}")
 f4.metric("Срок ROI", f"{INVESTMENT/investor_payout_usd:.1f} мес" if investor_payout_usd > 0 else "∞")
 
-# Прозрачная плашка с новыми точными выплатами Creator Rewards
-st.info(f"ℹ️ Чистый доход от программы Creator Rewards (Daily Engagement + Affiliate бонуса за камбэки): ${awards_bonus_usd:,.2f} в месяц ({int(gross_rewards_robux):,} R$)")
+# Прозрачная плашка с точным разбором Creator Rewards
+st.info(f"ℹ️ Доход от Creator Rewards: ${awards_bonus_usd:,.2f} в месяц. "
+        f"(Из них Daily Engagement: ${engagement_rewards_usd:,.2f}; "
+        f"Прямой долларовый Affiliate бонус за новичков: ${affiliate_rewards_usd:,.2f})")
 
 # --- ГРАФИК ОКУПАЕМОСТИ ---
 st.markdown("---")
