@@ -39,6 +39,7 @@ if input_mode == "Ползунки":
     # БЛОК НАСТРОЕК CREATOR REWARDS
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.slider("Доля Active Spenders на платформе (%):", 0.5, 15.0, value=7.0, step=0.5) / 100.0
+    ae_independent = st.sidebar.slider("Audience Expansion:", 0.1, 10.0, value=1.0, step=0.1)
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
@@ -68,6 +69,7 @@ else:
     
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.number_input("Доля Active Spenders (%):", 0.0, 100.0, value=7.0, step=0.5) / 100.0
+    ae_independent = st.sidebar.number_input("Audience Expansion:", 0.1, 10.0, value=1.0, step=0.1)
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
