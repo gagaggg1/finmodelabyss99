@@ -6,7 +6,7 @@ import numpy as np
 st.set_page_config(page_title="Abyss 99 Accurate Model v4.0", layout="wide")
 
 st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v4.0)")
-st.write("Модель исправлена: учтены прямые долларовые выплаты **35% Affiliate Share** за новичков.")
+st.write("Модель обновлена: MAU и Affiliate бонус теперь учитывают как CCU, так и приток новичков.")
 
 # --- НОВАЯ ПЛАШКА ВВОДА ---
 user_new_input = st.number_input("Введите количество новых игроков в день:", 1, 50000, value=200, step=10)
@@ -24,7 +24,6 @@ if input_mode == "Ползунки":
     ccu = st.sidebar.slider("Средний онлайн (CCU):", 10, 50000, value=500, step=50)
     session_time = st.sidebar.slider("Длина сессии (минут):", 1, 120, value=15, step=1)
     
-    # Фиксированный D1 напрямую от пользователя
     d1_input = st.sidebar.slider("D1 Retention (%):", 10.0, 75.0, value=32.0, step=1.0)
     
     alpha = 0.55
@@ -39,7 +38,6 @@ if input_mode == "Ползунки":
     base_conv = st.sidebar.slider("Базовая конверсия в донат (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
     base_arppu = st.sidebar.slider("Базовый чек донатера (R$):", 50, 2000, value=280, step=10)
     
-    # БЛОК НАСТРОЕК CREATOR REWARDS
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.slider("Доля Active Spenders на платформе (%):", 0.5, 15.0, value=7.0, step=0.5) / 100.0
     behavioral_filter = st.sidebar.slider("Эффективность фильтра (10+ мин) (%):", 1.0, 50.0, value=12.0, step=0.5) / 100.0
@@ -87,16 +85,16 @@ else:
 
 # --- ЯДРО РАСЧЕТОВ ---
 d1 = d1_input / 100.0
-
-# Определение суточного потока (DAU) на основе удерживаемого CCU
 dau = (ccu * 1440) / TARGET_SESSION if TARGET_SESSION > 0 else 0
 
-# Жизненный цикл игрока и MAU
+# Коэффициент удержания
 retention_days_sum = 1 + sum([d1 * (t ** -alpha) for t in range(1, 30)])
-mau = int(user_new_input * retention_days_sum)
+
+# ДИНАМИЧЕСКИЙ MAU (учитывает CCU и приток)
+mau = int((dau * 1.8) + (user_new_input * retention_days_sum * 0.1))
 required_new_users = dau / retention_days_sum
 
-# Влияние длины сессии на монетизацию донатов
+# Влияние сессии
 if session_time < TARGET_SESSION:
     session_mon_factor = (session_time / TARGET_SESSION) ** 1.2
 else:
@@ -105,31 +103,31 @@ else:
 real_conv = min(0.15, base_conv * (session_mon_factor ** 0.5))
 real_arppu = base_arppu * (session_mon_factor ** 0.7)
 
-# 1. Расчет внутриигровых донатов (Геймпассы, валюта)
+# 1. Донаты
 monthly_paying_users = (dau * real_conv) * 30
 gross_robux_donates = monthly_paying_users * real_arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# 2. РАСЧЕТ CREATOR REWARDS
+# 2. Creator Rewards
 premium_pool = dau * vgu_ratio
 qualified_events_daily = premium_pool * behavioral_filter
 monthly_qualified_engagement = qualified_events_daily * 30
 rewards_from_engagement_robux = monthly_qualified_engagement * 6.0 
 engagement_rewards_usd = (rewards_from_engagement_robux * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Часть Б: Affiliate Rewards (используем user_new_input)
-monthly_qualified_users = user_new_input * 15.0
+# 3. Affiliate бонус (теперь учитывает весь активный DAU)
+monthly_qualified_users = (dau * ae_percent) * 30
 affiliate_rewards_usd = monthly_qualified_users * 0.03 * 15.0 * 0.35 
 
 awards_bonus_usd = engagement_rewards_usd + affiliate_rewards_usd
 
-# Общие финансовые итоги симуляции
+# Итоги
 total_gross_usd = net_usd_donates + awards_bonus_usd
 total_pool = total_gross_usd * (1.0 - tax_rate - reinvest_rate - marketing_rate)
 investor_payout_usd = total_pool * share if total_pool > 0 else 0
 clear_profit_usd = total_pool - investor_payout_usd
 
-# --- ВЫВОД ДАННЫХ НА ЭКРАН ---
+# --- ВЫВОД ---
 col1, col2, col3 = st.columns(3)
 col1.metric("Текущий онлайн (CCU)", f"{int(ccu):,}")
 col2.metric("Активные за день (DAU)", f"{int(dau):,}")
@@ -140,32 +138,19 @@ st.info(f"🚀 Ежедневный приток для удержания: {int
 st.markdown("---")
 st.subheader("📊 Финансы (в месяц)")
 f1, f2, f3, f4 = st.columns(4)
-f1.metric("Gross USD (Донаты + Creator Rewards)", f"${total_gross_usd:,.2f}")
-f2.metric("Чистая прибыль студии", f"${clear_profit_usd:,.2f}")
+f1.metric("Gross USD", f"${total_gross_usd:,.2f}")
+f2.metric("Чистая прибыль", f"${clear_profit_usd:,.2f}")
 f3.metric("Выплата инвестору", f"${investor_payout_usd:,.2f}")
 f4.metric("Срок ROI", f"{INVESTMENT/investor_payout_usd:.1f} мес" if investor_payout_usd > 0 else "∞")
 
-# Прозрачная плашка с точным разбором Creator Rewards
 st.info(f"ℹ️ Доход от Creator Rewards: ${awards_bonus_usd:,.2f} в месяц. "
-        f"(Из них Daily Engagement: ${engagement_rewards_usd:,.2f}; "
-        f"Прямой долларовый Affiliate бонус за новичков: ${affiliate_rewards_usd:,.2f})")
+        f"(Engagement: ${engagement_rewards_usd:,.2f}; Affiliate бонус (DAU): ${affiliate_rewards_usd:,.2f})")
 
-# --- ГРАФИК ОКУПАЕМОСТИ ---
+# --- ГРАФИК ---
 st.markdown("---")
 st.subheader("📉 Динамика возврата инвестиций (Баланс инвестора)")
-
 fig, ax = plt.subplots(figsize=(10, 3.5))
-
 months = np.arange(0, 7)
-balance_timeline = -INVESTMENT + (investor_payout_usd * months)
-
-ax.plot(months, balance_timeline, color='#00ff41', marker='o', linewidth=2, label="Баланс инвестора ($)")
-ax.axhline(0, color='white', lw=1, linestyle='--')
-
-ax.set_xlabel("Месяцы после инвестирования")
-ax.set_ylabel("Текущий баланс ($)")
-ax.set_xticks(months)
-ax.grid(True, alpha=0.2)
-ax.legend()
-
+ax.plot(months, -INVESTMENT + (investor_payout_usd * months), color='#00ff41', marker='o', linewidth=2)
+ax.axhline(0, color='white', linestyle='--')
 st.pyplot(fig)
