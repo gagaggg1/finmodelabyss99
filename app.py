@@ -54,7 +54,7 @@ else:
     ccu = st.sidebar.number_input("Средний онлайн (CCU):", 0, 100000, value=500, step=100)
     session_time = st.sidebar.number_input("Длина сессии (мин):", 1, 240, value=15, step=1)
     
-    d1_input = st.sidebar.number_input("D1 Retention (%):", 0.0, 100.0, value=32.0, step=1.0)
+    d1_input = st.sidebar.number_input("Day 1 Retention (%):", 0.0, 100.0, value=32.0, step=1.0)
     
     alpha = 0.55
     d7_calc = d1_input * (7 ** -alpha)
@@ -65,8 +65,8 @@ else:
     st.sidebar.text(f"📉 Расчетный D30: {d30_calc:.1f}%")
     st.sidebar.markdown("---")
 
-    base_conv = st.sidebar.number_input("Базовая конверсия в донат (%):", 0.0, 100.0, value=2.5, step=0.1) / 100.0
-    base_arppu = st.sidebar.number_input("Базовый чек донатера (R$):", 0, 100000, value=280, step=50)
+    base_conv = st.sidebar.number_input("Конверсия (%):", 0.0, 100.0, value=2.5, step=0.1) / 100.0
+    base_arppu = st.sidebar.number_input("Средний чек (R$):", 0, 100000, value=280, step=50)
     
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.number_input("Доля Active Spenders (%):", 0.0, 100.0, value=7.0, step=0.5) / 100.0
@@ -143,12 +143,12 @@ st.subheader("📊 Финансы (в месяц)")
 f1, f2, f3, f4 = st.columns(4)
 f1.metric("Gross USD (Донаты + Creator Rewards)", f"${total_gross_usd:,.2f}")
 f2.metric("Чистая прибыль студии", f"${clear_profit_usd:,.2f}")
-f3.metric("Выплата инвестору", f"${investor_payout_usd:,.2f}")
+f3.metric("Прибыль инвестора", f"${investor_payout_usd:,.2f}")
 f4.metric("Срок ROI", f"{INVESTMENT/investor_payout_usd:.1f} мес" if investor_payout_usd > 0 else "∞")
 
 # Прозрачная плашка с точным разбором Creator Rewards
 st.info(f"ℹ️ Доход от Creator Rewards: ${awards_bonus_usd:,.2f} в месяц. "
-        f"(Из них Daily Engagement: ${engagement_rewards_usd:,.2f}; "
+        f"(Из них Daily Engagement: ${engagement_rewards_usd:,.2f} ; "
         f"Прямой долларовый Affiliate бонус за новичков: ${affiliate_rewards_usd:,.2f})")
 
 # --- ГРАФИК ОКУПАЕМОСТИ ---
