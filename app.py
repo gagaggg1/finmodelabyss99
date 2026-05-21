@@ -39,7 +39,7 @@ if input_mode == "Ползунки":
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.slider("Доля Active Spenders на платформе (%):", 0.5, 15.0, value=7.0, step=0.5) / 100.0
     behavioral_filter = st.sidebar.slider("Эффективность фильтра (10+ мин) (%):", 1.0, 50.0, value=12.0, step=0.5) / 100.0
-    ae_percent = st.sidebar.slider("Audience Expansion (Qualified %):", 0.1, 5.0, value=1.0, step=0.1) / 100.0
+    ae_percent = st.sidebar.slider("Audience Expansion :", 0.1, 5.0, value=1.0, step=0.1) / 100.0
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
