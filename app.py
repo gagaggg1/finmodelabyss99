@@ -20,7 +20,7 @@ INVESTMENT = 4500       # Стартовый капитал инвестора
 # 1. Инициализация базовых параметров в памяти (session_state)
 if "ccu_val" not in st.session_state: st.session_state["ccu_val"] = 500
 if "session_time" not in st.session_state: st.session_state["session_time"] = 35
-if "retention" not in st.session_state: st.session_state["retention"] = 10.0  # Бывший Sticky Factor
+if "retention" not in st.session_state: st.session_state["retention"] = 10.0  # Retention (липучесть)
 
 # Производные значения, которые рассчитаются автоматически
 if "dau_val" not in st.session_state: st.session_state["dau_val"] = 20571
@@ -36,18 +36,16 @@ if "marketing_rate" not in st.session_state: st.session_state["marketing_rate"] 
 if "tax_rate" not in st.session_state: st.session_state["tax_rate"] = 6
 if "share" not in st.session_state: st.session_state["share"] = 35
 
-# 2. МАТЕМАТИЧЕСКИЕ КОЛБЭКИ (CCU — главный источник правды)
+# 2. МАТЕМАТИЧЕСКИЕ КОЛБЭКИ (CCU — главный источник правды, Retention растит базу)
 def sync_from_ccu():
-    # Из CCU и длины сессии получаем DAU (сколько человек в день нужно для такого онлайна)
-    # Формула: CCU = (DAU * Session) / 1440  =>  DAU = (CCU * 1440) / Session
+    # Из CCU и длины сессии получаем DAU (сколько человек в день генерируют такой онлайн)
     sess = st.session_state["session_time"]
     dau_calc = (st.session_state["ccu_val"] * 1440) / sess if sess > 0 else 0
     st.session_state["dau_val"] = max(MIN_DAU, min(int(dau_calc), MAX_DAU))
     
-    # Из полученного DAU и Retention получаем необходимый объем MAU
-    # Формула: Retention = DAU / MAU  =>  MAU = DAU / Retention
+    # Рост Retention теперь увеличивает накопительную базу MAU
     ret = st.session_state["retention"] / 100.0
-    mau_calc = st.session_state["dau_val"] / ret if ret > 0 else 0
+    mau_calc = st.session_state["dau_val"] * (2 - ret) * 5  
     st.session_state["mau_val"] = max(MIN_MAU, min(int(mau_calc), MAX_MAU))
 
 def sync_from_dau():
@@ -57,20 +55,21 @@ def sync_from_dau():
     st.session_state["ccu_val"] = max(MIN_CCU, min(int(ccu_calc), MAX_CCU))
     
     ret = st.session_state["retention"] / 100.0
-    mau_calc = st.session_state["dau_val"] / ret if ret > 0 else 0
+    mau_calc = st.session_state["dau_val"] * (2 - ret) * 5
     st.session_state["mau_val"] = max(MIN_MAU, min(int(mau_calc), MAX_MAU))
 
 def sync_from_mau():
-    # Если пользователь руками меняет MAU, адаптируем DAU через Retention, а затем CCU
+    # Если пользователь руками меняет MAU, адаптируем DAU и CCU
+    mau_input = st.session_state["mau_val"]
     ret = st.session_state["retention"] / 100.0
-    dau_calc = st.session_state["mau_val"] * ret
+    dau_calc = mau_input / ((2 - ret) * 5) if (2 - ret) * 5 > 0 else 0
     st.session_state["dau_val"] = max(MIN_DAU, min(int(dau_calc), MAX_DAU))
     
     sess = st.session_state["session_time"]
     ccu_calc = (st.session_state["dau_val"] * sess) / 1440
     st.session_state["ccu_val"] = max(MIN_CCU, min(int(ccu_calc), MAX_CCU))
 
-# Первичный запуск синхронизации
+# Первичный запуск синхронизации при старте приложения
 if "init" not in st.session_state:
     sync_from_ccu()
     st.session_state["init"] = True
@@ -140,19 +139,26 @@ marketing_rate = float(st.session_state["marketing_rate"]) / 100.0
 tax_rate = float(st.session_state["tax_rate"]) / 100.0
 share = float(st.session_state["share"]) / 100.0
 
-# --- РАСЧЕТЫ ЭКОНОМИКИ ДОХОДОВ ---
+# --- РАСЧЕТЫ ЭКОНОМИКИ ДОХОДОВ (ИСПРАВЛЕНО) ---
 def usd_to_robux(usd, rate):
     return usd / rate if rate > 0 else 0
 
-paying_users = mau * conv
-gross_robux_donates = paying_users * arppu
+# Retention теперь работает как фактор лояльности и повторных покупок за месяц
+ret_factor = retention_pct / 10.0  
+
+# Донаты рассчитываются от стабильного дневного потока активных пользователей (DAU) с учетом удержания
+daily_paying_users = dau * conv
+monthly_transaction_volume = daily_paying_users * 30 * (1 + (ret_factor * 0.1))
+
+gross_robux_donates = monthly_transaction_volume * arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Премиум выплаты зависят напрямую от удержания и онлайна
-premium_bonus_usd = ccu * (session_time / 30.0) * (premium_ratio / 0.02)
+# Премиум-выплаты растут от CCU, длины сессии и Retention (игроки дольше сидят внутри и чаще возвращаются)
+premium_bonus_usd = ccu * (session_time / 30.0) * (premium_ratio / 0.02) * (1 + ret_factor * 0.2)
 total_gross_usd = net_usd_donates + premium_bonus_usd
 total_gross_robux = usd_to_robux(total_gross_usd, devex_rate)
 
+# --- РАСЧЕТЫ РАСХОДОВ И ЧИСТОЙ ПРИБЫЛИ ---
 tax_usd = total_gross_usd * tax_rate
 tax_robux = usd_to_robux(tax_usd, devex_rate)
 
@@ -183,7 +189,7 @@ st.subheader("🖥️ Динамические показатели аудито
 sys_col1, sys_col2, sys_col3 = st.columns(3)
 sys_col1.metric("Активный онлайн (CCU) 🔥", f"{ccu:,} чел.", help="Главная целевая метрика проекта.")
 sys_col2.metric("Дневная аудитория (DAU)", f"{dau:,} чел.", f"Retention: {retention_pct}%")
-sys_col3.metric("Месячная аудитория (MAU)", f"{mau:,} чел.", "Рассчитано от стабильного онлайна")
+sys_col3.metric("Месячная аудитория (MAU)", f"{mau:,} чел.", "Накопительная база с учетом удержания")
 
 st.markdown("---")
 
@@ -210,7 +216,7 @@ else:
 st.markdown("---")
 
 # --- ОТРИСОВКА ГРАФИКА ОКУПАЕМОСТИ ---
-st.subheader("🦑 График окупаемости инвестиций (Возврат капитала)")
+st.subheader("Squid График окупаемости инвестиций (Возврат капитала)")
 
 plt.style.use('dark_background') 
 fig, ax = plt.subplots(figsize=(12, 4.5), dpi=120)
