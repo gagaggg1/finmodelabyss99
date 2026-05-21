@@ -43,7 +43,7 @@ if input_mode == "Ползунки":
     
     st.sidebar.markdown("---")
     with st.sidebar.container():
-        st.subheader("💰 Налоги, Курс и Распределение")
+        st.subheader("💰 Реинвестирование")
         devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 R$):", 0.0010, 0.0100, value=0.0035, step=0.0001, format="%.4f")
         tax_rate = st.sidebar.slider("Налог на вывод (%):", 0, 20, value=6, step=1) / 100.0
         reinvest_rate = st.sidebar.slider("Поддержка игры / Фонд развития (%):", 0, 50, value=15, step=5) / 100.0
