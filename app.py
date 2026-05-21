@@ -158,32 +158,38 @@ st.info(f"ℹ️ Доход от Creator Rewards: ${awards_bonus_usd:,.2f} в м
         f"(Из них Daily Engagement: ${engagement_rewards_usd:,.2f} ; "
         f"Прямой долларовый Affiliate бонус за новичков: ${affiliate_rewards_usd:,.2f})")
 
-# --- ГРАФИК ОКУПАЕМОСТИ ---
+# --- ГРАФИК ОКУПАЕМОСТИ (СТИЛЬ ABYSS) ---
 st.markdown("---")
 st.subheader("📉 Динамика возврата инвестиций (Баланс инвестора)")
 
-fig, ax = plt.subplots(figsize=(10, 3.5))
+# Настройка стиля под Abyss
+plt.style.use('dark_background')
+fig, ax = plt.subplots(figsize=(10, 4))
+fig.patch.set_facecolor('#0e1117') # Цвет фона под тему Streamlit
+ax.set_facecolor('#1a1d23')
 
 months = np.arange(0, 7)
 balance_timeline = -INVESTMENT + (investor_payout_usd * months)
 
-ax.plot(months, balance_timeline, color='#00ff41', marker='o', linewidth=2, label="Баланс инвестора ($)")
-ax.axhline(0, color='white', lw=1, linestyle='--')
+# Линия баланса (неоново-голубой)
+ax.plot(months, balance_timeline, color='#00f2ff', marker='o', linewidth=3, label="Баланс инвестора ($)", markersize=8)
+ax.axhline(0, color='#ff4b4b', lw=2, linestyle='--', alpha=0.6) # Линия нуля красная (опасность)
 
 # ОТОБРАЖЕНИЕ ТОЧКИ ROI
 if investor_payout_usd > 0:
     break_even_month = INVESTMENT / investor_payout_usd
-    # Если точка в рамках графика (до 6 месяцев), рисуем её
-    if break_even_month <= 6:
-        ax.plot(break_even_month, 0, 'ro', markersize=10, label="Точка окупаемости")
-        ax.annotate(f'ROI: {break_even_month:.1f} мес', xy=(break_even_month, 0), 
-                    xytext=(break_even_month, balance_timeline.max()/4),
-                    arrowprops=dict(facecolor='white', shrink=0.05), color='white')
+    ax.plot(break_even_month, 0, 'o', color='#ffffff', markersize=12, markeredgecolor='#00f2ff', label="Точка окупаемости")
+    ax.annotate(f' ROI: {break_even_month:.1f} мес', xy=(break_even_month, 0), 
+                xytext=(break_even_month + 0.2, balance_timeline.max()/3),
+                color='#ffffff', fontsize=10, fontweight='bold',
+                bbox=dict(boxstyle="round,pad=0.3", fc="#00f2ff", ec="none", alpha=0.3))
 
 ax.set_xlabel("Месяцы после инвестирования")
-ax.set_ylabel("Текущий баланс ($)")
+ax.set_ylabel("Чистая прибыль инвестора ($)")
 ax.set_xticks(months)
-ax.grid(True, alpha=0.2)
-ax.legend()
+ax.grid(True, color='#333333', linestyle=':', alpha=0.6)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.legend(loc='upper left', facecolor='#1a1d23')
 
 st.pyplot(fig)
