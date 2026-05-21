@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Настройки веб-страницы
-st.set_page_config(page_title="Abyss 99 Realistic Model v3.2", layout="wide")
+st.set_page_config(page_title="Abyss 99 Realistic Model v3.3", layout="wide")
 
-st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v3.2)")
+st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (v3.3)")
 st.write("Целевая сессия для вовлечения пересмотрена до **15 минут**.")
 
 # Константы
@@ -21,17 +21,17 @@ input_mode = st.sidebar.radio("Режим ввода:", ("Ползунки", "В
 if input_mode == "Ползунки":
     ccu = st.sidebar.slider("Средний онлайн (CCU):", 10, 50000, value=500, step=50)
     session_time = st.sidebar.slider("Длина сессии (минут):", 1, 120, value=15, step=1)
-    base_d1 = st.sidebar.slider("Базовый D1 Retention (%):", 10.0, 60.0, value=32.0, step=1.0)
     
-    # Расчет удержания для вывода слева
-    retention_factor = (session_time / TARGET_SESSION) ** 1.5 if session_time < TARGET_SESSION else min(1.2, 1.0 + (session_time - TARGET_SESSION) / 120.0)
-    d1_calc = max(0.0, min(base_d1 * retention_factor, 75.0))
+    # ТЕПЕРЬ ЭТО ФИКСИРОВАННЫЙ D1, КОТОРЫЙ ВЫБИРАЕШЬ ТЫ
+    d1_input = st.sidebar.slider("D1 Retention (%):", 10.0, 75.0, value=32.0, step=1.0)
+    
+    # Расчет долгосрочного удержания на основе фиксированного D1
     alpha = 0.55
-    d7_calc = d1_calc * (7 ** -alpha)
-    d30_calc = d1_calc * (30 ** -alpha)
+    d7_calc = d1_input * (7 ** -alpha)
+    d30_calc = d1_input * (30 ** -alpha)
     
-    # Блок удержания на левой панели
-    st.sidebar.text(f"📊 Текущий D1: {d1_calc:.1f}%")
+    # Блок удержания на левой панели (D1 теперь в точности равен введенному)
+    st.sidebar.text(f"📊 Зафиксированный D1: {d1_input:.1f}%")
     st.sidebar.text(f"📈 Расчетный D7: {d7_calc:.1f}%")
     st.sidebar.text(f"📉 Расчетный D30: {d30_calc:.1f}%")
     st.sidebar.markdown("---")
@@ -51,15 +51,15 @@ if input_mode == "Ползунки":
 else:
     ccu = st.sidebar.number_input("Средний онлайн (CCU):", 0, 100000, value=500, step=100)
     session_time = st.sidebar.number_input("Длина сессии (мин):", 1, 240, value=15, step=1)
-    base_d1 = st.sidebar.number_input("Базовый D1 Retention (%):", 0.0, 100.0, value=32.0, step=1.0)
     
-    retention_factor = (session_time / TARGET_SESSION) ** 1.5 if session_time < TARGET_SESSION else min(1.2, 1.0 + (session_time - TARGET_SESSION) / 120.0)
-    d1_calc = max(0.0, min(base_d1 * retention_factor, 75.0))
+    # ТЕПЕРЬ ЭТО ФИКСИРОВАННЫЙ D1 (Вручную)
+    d1_input = st.sidebar.number_input("D1 Retention (%):", 0.0, 100.0, value=32.0, step=1.0)
+    
     alpha = 0.55
-    d7_calc = d1_calc * (7 ** -alpha)
-    d30_calc = d1_calc * (30 ** -alpha)
+    d7_calc = d1_input * (7 ** -alpha)
+    d30_calc = d1_input * (30 ** -alpha)
     
-    st.sidebar.text(f"📊 Текущий D1: {d1_calc:.1f}%")
+    st.sidebar.text(f"📊 Зафиксированный D1: {d1_input:.1f}%")
     st.sidebar.text(f"📈 Расчетный D7: {d7_calc:.1f}%")
     st.sidebar.text(f"📉 Расчетный D30: {d30_calc:.1f}%")
     st.sidebar.markdown("---")
@@ -78,21 +78,24 @@ else:
         share = st.sidebar.number_input("Доля инвестора (%):", 0, 100, value=35, step=5) / 100.0
 
 # --- ЯДРО РАСЧЕТОВ ---
-dau = (ccu * 1440) / TARGET_SESSION if TARGET_SESSION > 0 else 0
-d1 = d1_calc
+# Жёстко забираем D1 из инпута без скрытых коэффициентов
+d1 = d1_input
 
+# Рассчитываем DAU на основе CCU и длины сессии
+dau = (ccu * 1440) / TARGET_SESSION if TARGET_SESSION > 0 else 0
+
+# Жизненный цикл игрока и MAU на основе честного D1
 player_lifetime_days = 1 + sum([(d1/100.0) * (t ** -alpha) for t in range(2, 31)])
 mau = dau * (30 / player_lifetime_days) if player_lifetime_days > 0 else 0
 
-# Монетизация донатов
+# Зависимость монетизации донатов от длины сессии
 if session_time < TARGET_SESSION:
     session_mon_factor = (session_time / TARGET_SESSION) ** 1.2
 else:
     session_mon_factor = 1.0 + ((session_time - TARGET_SESSION) / TARGET_SESSION) ** 0.6
 
-retention_mon_factor = max(0.1, min(1.2, d1 / base_d1)) if base_d1 > 0 else 0.1
-
-real_conv = min(0.15, base_conv * (session_mon_factor ** 0.5) * retention_mon_factor)
+# Реальные конверсии и чеки
+real_conv = min(0.15, base_conv * (session_mon_factor ** 0.5))
 real_arppu = base_arppu * (session_mon_factor ** 0.7)
 
 # Финансы (Донаты)
@@ -100,7 +103,7 @@ monthly_paying_users = (dau * real_conv) * player_lifetime_days
 gross_robux_donates = monthly_paying_users * real_arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Расчет Premium Payouts (на основе общего времени онлайна за месяц)
+# Расчет Premium Payouts (на основе общего времени онлайна за месяц — точный метод)
 total_minutes_monthly = ccu * 60 * 24 * 30
 premium_minutes_monthly = total_minutes_monthly * premium_ratio
 gross_premium_robux = premium_minutes_monthly * PREMIUM_ROBUX_PER_MINUTE
