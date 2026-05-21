@@ -117,7 +117,7 @@ engagement_rewards_usd = (rewards_from_engagement_robux * (1.0 - ROBLOX_TAX)) * 
 # Часть Б: Affiliate Rewards (Исправленная когортная модель с учетом Decay)
 qualified_decay = 15.0 # Коэффициент учета overlap и окна выплат (вместо 30)
 monthly_qualified_users = dau * ae_percent * qualified_decay
-ae_payer_rate = 0.03 # Обновлено: 3% конверсия внутри qualified cohort
+ae_payer_rate = 0.04 # 4% конверсия внутри qualified cohort
 affiliate_rewards_usd = monthly_qualified_users * ae_payer_rate * 15.0 * 0.35
 
 # Итоговый суммарный доход от Creator Rewards в долларах
