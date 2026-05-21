@@ -1,74 +1,93 @@
 import streamlit as st
 import matplotlib.pyplot as plt
+import numpy as np
 
-# Настройки страницы
-st.set_page_config(page_title="Abyss 99 | Full Enterprise Model", layout="wide")
+# Настройки веб-страницы
+st.set_page_config(page_title="Abyss 99 Realistic Model v3.0", layout="wide")
 
-st.title("🐙 Abyss 99: Полная аналитическая панель (Enterprise Edition)")
+st.title("🐙 Реалистичная бизнес-модель: «99 Ночей в Бездне» (v3.0)")
+st.write("Целевая сессия для вовлечения пересмотрена до **15 минут**.")
 
-# --- САЙДБАР: ГЛОБАЛЬНЫЕ НАСТРОЙКИ ---
-with st.sidebar:
-    st.header("⚙️ Глобальные параметры")
-    ccu = st.slider("Средний онлайн (CCU):", 50, 10000, 500, 50)
-    session_time = st.slider("Длина сессии (мин):", 1, 60, 15, 1)
-    cac = st.number_input("Стоимость привлечения 1 юзера (CAC) ($):", 0.01, 2.00, 0.20, 0.01)
-    st.divider()
-    base_d1 = st.slider("D1 Retention (идеал %):", 10.0, 60.0, 32.0)
-    base_conv = st.slider("Конверсия в донат (%):", 0.5, 10.0, 2.5) / 100.0
-    base_arppu = st.slider("Чек донатера (R$):", 50, 2000, 280)
-    devex = st.slider("Курс DevEx ($ за 1 R$):", 0.0010, 0.0100, 0.0035, 0.0001)
-    share = st.slider("Доля инвестора (%):", 0, 100, 35) / 100.0
+# Константы
+ROBLOX_TAX = 0.30
+INVESTMENT = 4500
+TARGET_SESSION = 15.0  # НОВЫЙ ЛИМИТ
 
-# --- ЛОГИКА РАСЧЕТОВ ---
-TARGET_SESSION = 10.0
+# --- ИНТЕРФЕЙС ---
+st.sidebar.header("🎛️ Управление симуляцией")
+input_mode = st.sidebar.radio("Режим ввода:", ("Ползунки", "Ввод вручную"))
+
+if input_mode == "Ползунки":
+    ccu = st.sidebar.slider("Средний онлайн (CCU):", 10, 50000, value=500, step=50)
+    session_time = st.sidebar.slider("Длина сессии (минут):", 1, 120, value=15, step=1)
+    base_d1 = st.sidebar.slider("Базовый D1 Retention (%):", 10.0, 60.0, value=32.0, step=1.0)
+    base_conv = st.sidebar.slider("Базовая конверсия (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
+    base_arppu = st.sidebar.slider("Базовый чек донатера (R$):", 50, 2000, value=280, step=10)
+    devex_rate = st.sidebar.slider("Курс DevEx ($ за 1 R$):", 0.0010, 0.0100, value=0.0035, step=0.0001, format="%.4f")
+    premium_ratio = st.sidebar.slider("Доля Premium игроков (%):", 0.5, 15.0, value=3.0, step=0.5) / 100.0
+    tax_rate = st.sidebar.slider("Налог на вывод (%):", 0, 20, value=6, step=1) / 100.0
+    reinvest_rate = st.sidebar.slider("Фонд развития (%):", 0, 50, value=15, step=5) / 100.0
+    marketing_rate = st.sidebar.slider("Маркетинг (%):", 0, 40, value=10, step=5) / 100.0
+    share = st.sidebar.slider("Доля инвестора (%):", 0, 100, value=35, step=5) / 100.0
+else:
+    ccu = st.sidebar.number_input("Средний онлайн (CCU):", 0, 100000, value=500, step=100)
+    session_time = st.sidebar.number_input("Длина сессии (мин):", 1, 240, value=15, step=1)
+    base_d1 = st.sidebar.number_input("Базовый D1 Retention (%):", 0.0, 100.0, value=32.0, step=1.0)
+    base_conv = st.sidebar.number_input("Базовая конверсия (%):", 0.0, 100.0, value=2.5, step=0.1) / 100.0
+    base_arppu = st.sidebar.number_input("Базовый чек донатера (R$):", 0, 100000, value=280, step=50)
+    devex_rate = st.sidebar.number_input("Курс DevEx ($ за 1 R$):", 0.0000, 0.0100, value=0.0035, step=0.0001, format="%.4f")
+    premium_ratio = st.sidebar.number_input("Доля Premium (%):", 0.0, 100.0, value=3.0, step=0.5) / 100.0
+    tax_rate = st.sidebar.number_input("Налог на вывод (%):", 0, 100, value=6, step=1) / 100.0
+    reinvest_rate = st.sidebar.number_input("Фонд развития (%):", 0, 100, value=15, step=5) / 100.0
+    marketing_rate = st.sidebar.number_input("Маркетинг (%):", 0, 100, value=10, step=5) / 100.0
+    share = st.sidebar.number_input("Доля инвестора (%):", 0, 100, value=35, step=5) / 100.0
+
+# --- ЯДРО РАСЧЕТОВ ---
+# Retention с учетом нового лимита 15 минут
 retention_factor = (session_time / TARGET_SESSION) ** 2 if session_time < TARGET_SESSION else min(1.15, 1.0 + (session_time - TARGET_SESSION) / 100.0)
 d1 = max(0.0, min(base_d1 * retention_factor, 75.0))
-lifetime = 1 + sum([(d1/100.0) * (t ** -0.55) for t in range(2, 31)])
-dau = (ccu * 1440) / session_time
-mau = dau * (30 / lifetime)
-session_mon = max(0.02, min(1.0, session_time / TARGET_SESSION))
-real_conv = base_conv * session_mon * max(0.1, min(1.0, d1/base_d1))
-gross_usd = ((dau * real_conv * lifetime * base_arppu * 0.70 * devex) + (dau * 0.03 * session_time * 30 * 0.00015 * (d1/100)))
-total_marketing = (dau * 30 / lifetime) * cac
-net_profit = gross_usd - total_marketing
-investor_share = net_profit * share if net_profit > 0 else 0
+alpha = 0.55
+player_lifetime_days = 1 + sum([(d1/100.0) * (t ** -alpha) for t in range(2, 31)])
 
-# --- ВЫВОД: МАСШТАБНЫЙ ИНТЕРФЕЙС ---
+# Трафик
+dau = (ccu * 1440) / session_time if session_time > 0 else 0
+mau = dau * (30 / player_lifetime_days) if player_lifetime_days > 0 else 0
 
-# Блок 1: Метрики аудитории
-st.subheader("📊 Операционные метрики аудитории")
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Ежедневный онлайн (DAU)", f"{int(dau):,}")
-c2.metric("Месячный охват (MAU)", f"{int(mau):,}")
-c3.metric("Retention D1", f"{d1:.1f}%")
-c4.metric("LTV игрока", f"${(gross_usd / mau if mau > 0 else 0):.4f}")
+# Монетизация
+session_mon_factor = max(0.02, min(1.0, session_time / TARGET_SESSION))
+retention_mon_factor = max(0.1, min(1.0, d1 / base_d1)) if base_d1 > 0 else 0.1
+real_conv = base_conv * session_mon_factor * retention_mon_factor
+real_arppu = base_arppu * session_mon_factor
 
-st.divider()
+# Финансы
+monthly_paying_users = (dau * real_conv) * player_lifetime_days
+gross_robux_donates = monthly_paying_users * real_arppu
+premium_bonus_usd = ((dau * premium_ratio) * session_time * 30) * 0.00015 * (d1 / 100.0)
+net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
+total_gross_usd = net_usd_donates + premium_bonus_usd
 
-# Блок 2: Финансы
-st.subheader("💰 Финансовый отчет (Monthly)")
+# Распределение прибыли
+total_pool = total_gross_usd * (1.0 - tax_rate - reinvest_rate - marketing_rate)
+investor_payout_usd = total_pool * share if total_pool > 0 else 0
+clear_profit_usd = total_pool - investor_payout_usd
+
+# --- ВЫВОД ДАННЫХ ---
+col1, col2, col3 = st.columns(3)
+col1.metric("DAU", f"{int(dau):,}")
+col2.metric("MAU", f"{int(mau):,}")
+col3.metric("D1 Retention", f"{d1:.1f}%")
+
+st.markdown("---")
+st.subheader("📊 Финансы (в месяц)")
 f1, f2, f3, f4 = st.columns(4)
-f1.metric("Gross Выручка", f"${gross_usd:,.2f}")
-f2.metric("Расходы на трафик", f"${total_marketing:,.2f}")
-f3.metric("Чистая прибыль", f"${net_profit:,.2f}")
-f4.metric("Выплата инвестору", f"${investor_share:,.2f}")
+f1.metric("Gross USD", f"${total_gross_usd:,.2f}")
+f2.metric("Чистая прибыль студии", f"${clear_profit_usd:,.2f}")
+f3.metric("Выплата инвестору", f"${investor_payout_usd:,.2f}")
+f4.metric("Срок ROI", f"{INVESTMENT/investor_payout_usd:.1f} мес" if investor_payout_usd > 0 else "∞")
 
-# Статус окупаемости
-if net_profit > 0:
-    roi_time = 4500 / investor_share if investor_share > 0 else 99
-    st.success(f"### 📈 Проект прибыльный! Расчетный срок окупаемости вложений ($4500): {roi_time:.1f} месяцев.")
-else:
-    st.error("### ⚠️ Проект убыточен: Стоимость привлечения (CAC) превышает доходность.")
-
-# Блок 3: График на 12 месяцев
-st.subheader("🗓️ Прогноз возврата инвестиций (ROI)")
-fig, ax = plt.subplots(figsize=(14, 5))
-ax.set_facecolor('#0e1117')
-fig.patch.set_facecolor('#0e1117')
-balance = [-4500 + (investor_share * i) for i in range(13)]
-ax.plot(range(13), balance, color='#00ff41', lw=4, marker='o', markersize=8)
-ax.axhline(0, color='white', lw=1, ls='--')
-plt.xticks(range(13), [f"Месяц {i}" for i in range(13)])
-ax.tick_params(colors='white')
-ax.set_ylabel("Чистый баланс инвестора ($)", color='white')
+# График
+fig, ax = plt.subplots(figsize=(10, 3))
+balance = [-INVESTMENT, -INVESTMENT, -INVESTMENT, -INVESTMENT, -INVESTMENT + investor_payout_usd, -INVESTMENT + (investor_payout_usd*2)]
+ax.plot(range(1, 7), balance, color='#00ff41', marker='o')
+ax.axhline(0, color='white', lw=1)
 st.pyplot(fig)
