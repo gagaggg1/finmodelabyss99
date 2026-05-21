@@ -55,19 +55,21 @@ else:
         share = st.sidebar.number_input("Доля инвестора (%):", 0, 100, value=35, step=5) / 100.0
 
 # --- ЯДРО РАСЧЕТОВ ---
-# 1. Трафик завязан на TARGET_SESSION, чтобы изменение длины сессии не ломало объемы DAU/MAU
 dau = (ccu * 1440) / TARGET_SESSION if TARGET_SESSION > 0 else 0
 
-# Retention с удержанием лимита
+# Retention D1 с удержанием лимита
 retention_factor = (session_time / TARGET_SESSION) ** 1.5 if session_time < TARGET_SESSION else min(1.2, 1.0 + (session_time - TARGET_SESSION) / 120.0)
 d1 = max(0.0, min(base_d1 * retention_factor, 75.0))
 alpha = 0.55
-player_lifetime_days = 1 + sum([(d1/100.0) * (t ** -alpha) for t in range(2, 31)])
 
+# Математический расчет D7 и D30 на основе формулы затухания (закрыты от ручного изменения)
+d7 = d1 * (7 ** -alpha)
+d30 = d1 * (30 ** -alpha)
+
+player_lifetime_days = 1 + sum([(d1/100.0) * (t ** -alpha) for t in range(2, 31)])
 mau = dau * (30 / player_lifetime_days) if player_lifetime_days > 0 else 0
 
-# 2. Плавный и реалистичный рост монетизации от длины сессии (степенные коэффициенты)
-# Если сессия < 15 мин — плавно штрафуем. Если > 15 мин — даем адекватный прирост (с корнем, без бесконечного взлета)
+# Монетизация
 if session_time < TARGET_SESSION:
     session_mon_factor = (session_time / TARGET_SESSION) ** 1.2
 else:
@@ -75,7 +77,6 @@ else:
 
 retention_mon_factor = max(0.1, min(1.2, d1 / base_d1)) if base_d1 > 0 else 0.1
 
-# Финальная конверсия и чек зависят от времени в игре
 real_conv = min(0.15, base_conv * (session_mon_factor ** 0.5) * retention_mon_factor)
 real_arppu = base_arppu * (session_mon_factor ** 0.7)
 
@@ -83,23 +84,32 @@ real_arppu = base_arppu * (session_mon_factor ** 0.7)
 monthly_paying_users = (dau * real_conv) * player_lifetime_days
 gross_robux_donates = monthly_paying_users * real_arppu
 
-# Premium-выплаты (напрямую масштабируются от суммарного времени сессий)
 premium_bonus_usd = ((dau * premium_ratio) * session_time * 30) * 0.00015 * (d1 / 100.0)
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 total_gross_usd = net_usd_donates + premium_bonus_usd
 
-# Распределение прибыли
 total_pool = total_gross_usd * (1.0 - tax_rate - reinvest_rate - marketing_rate)
 investor_payout_usd = total_pool * share if total_pool > 0 else 0
 clear_profit_usd = total_pool - investor_payout_usd
 
 # --- ВЫВОД ДАННЫХ ---
-col1, col2, col3 = st.columns(3)
-col1.metric("DAU", f"{int(dau):,}")
-col2.metric("MAU", f"{int(mau):,}")
-col3.metric("D1 Retention", f"{d1:.1f}%")
+# Верхняя панель: Трафик
+col1, col2 = st.columns(2)
+col1.metric("DAU (Дневной онлайн)", f"{int(dau):,}")
+col2.metric("MAU (Месячный онлайн)", f"{int(mau):,}")
 
 st.markdown("---")
+
+# Панель удерживаемых игроков (Retention)
+st.subheader("👥 Метрики удержания (Retention)")
+rd1, rd7, rd30 = st.columns(3)
+rd1.metric("D1 Retention", f"{d1:.1f}%")
+rd7.metric("D7 Retention (Расчетный)", f"{d7:.1f}%")
+rd30.metric("D30 Retention (Расчетный)", f"{d30:.1f}%")
+
+st.markdown("---")
+
+# Финансовая панель
 st.subheader("📊 Финансы (в месяц)")
 f1, f2, f3, f4 = st.columns(4)
 f1.metric("Gross USD", f"${total_gross_usd:,.2f}")
