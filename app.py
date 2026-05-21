@@ -71,7 +71,7 @@ st.sidebar.header("🎛️ Настройка переменных")
 input_mode = st.sidebar.radio("Режим ввода данных:", ("Ползунки", "Ввод вручную"))
 st.sidebar.markdown("---")
 
-# 3. Отрисовка интерфейса (связка идет только через key, без жесткого value)
+# 3. Отрисовка интерфейса
 if input_mode == "Ползунки":
     st.sidebar.markdown("### 👥 Аудитория и Трафик")
     st.sidebar.slider("Игроков в день (DAU):", min_value=MIN_DAU, max_value=MAX_DAU, step=1000, key="dau_val", on_change=sync_dau)
@@ -202,25 +202,32 @@ else:
 st.markdown("---")
 
 # --- ОТРИСОВКА НОВОГО КЛАССНОГО ГРАФИКА ---
-
 st.subheader("🦑 График окупаемости инвестиций (Возврат капитала)")
 
 # Настройка эстетики в стиле Abyss/Киберпанк
-plt.style.use('dark_background') # Темный фон - основа стиля
+plt.style.use('dark_background') 
 fig, ax = plt.subplots(figsize=(12, 4.5), dpi=120)
 
 # Генерируем данные (6 месяцев)
 months_full = ['M1 (Dev)', 'M2 (Dev)', 'M3 (Test)', 'M4 (Релиз)', 'M5', 'M6']
 months_numeric = np.array([1, 2, 3, 4, 5, 6])
-# Тестовые инвестиции вычитаются в M3, доход начинается в M4
-balance = np.array([-4500, -4500, -4100, -4100 + payout_step, -4100 + (payout_step * 2), -4100 + (payout_step * 3)])
+
+# Баланс считается динамически относительно INVESTMENT и payout_step
+balance = np.array([
+    -INVESTMENT,                                # M1 (Разработка)
+    -INVESTMENT,                                # M2 (Разработка)
+    -INVESTMENT,                                # M3 (Тесты)
+    -INVESTMENT + payout_step,                  # M4 (Релиз, первый доход)
+    -INVESTMENT + (payout_step * 2),            # M5
+    -INVESTMENT + (payout_step * 3)             # M6
+])
 
 # 1. Основная НЕОНОВАЯ ЛИНИЯ капитала (Зеленый свет)
-neongreen = '#00ff41' # Яркий, кибернетический зеленый
+neongreen = '#00ff41' 
 line, = ax.plot(months_numeric, balance, marker='o', color=neongreen, linewidth=3, markersize=8, label="Текущий капитал", zorder=5)
 
 # Добавляем эффект неонового свечения вокруг линии (дублируем линию с размытием)
-neongreen_glow = '#00ff4110' # То же самое, но очень прозрачное
+neongreen_glow = '#00ff4110' 
 for n in range(1, 10):
     ax.plot(months_numeric, balance, marker='o', color=neongreen_glow, linewidth=3 + (n*1.5), markersize=8+(n), zorder=4)
 
@@ -232,11 +239,8 @@ ax.fill_between(months_numeric, balance, 0, where=[b<0 for b in balance], interp
 # Зона Прибыли (Зеленый градиент)
 ax.fill_between(months_numeric, balance, 0, where=[b>=0 for b in balance], interpolate=True, color=neongreen, alpha=0.15, zorder=2)
 
-# 3. Детализация оси и сетки (Легкая, не отвлекающая)
-# Линия нуля (серая, пунктирная)
+# 3. Детализация оси и сетки
 ax.axhline(0, color='#444444', linewidth=1, linestyle='--', zorder=3)
-
-# Сетка (очень прозрачная)
 ax.grid(True, axis='y', color='#222222', linestyle='-', linewidth=0.5, alpha=0.5, zorder=1)
 ax.grid(False, axis='x')
 
@@ -244,7 +248,6 @@ ax.grid(False, axis='x')
 plt.xticks(months_numeric, months_full, color='#888888', fontsize=10)
 plt.yticks(color='#888888', fontsize=9)
 ax.set_ylabel("Капитал проекта ($)", color='#aaaaaa', fontsize=11, labelpad=10)
-#ax.set_title("🦑 Динамика возврата стартовых $4,500 инвестиций", color='#ffffff', fontsize=14, pad=15)
 
 # Убираем лишние рамки
 ax.spines['top'].set_visible(False)
