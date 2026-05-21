@@ -3,68 +3,62 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Настройки
-st.set_page_config(page_title="Abyss 99 Realistic Model", layout="wide")
-st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (Realistic Funnel)")
+st.set_page_config(page_title="Abyss 99 Full Model", layout="wide")
+st.title("🐙 Бизнес-модель: «99 Ночей в Бездне» (Полная версия)")
 
 # --- ПАРАМЕТРЫ (SIDEBAR) ---
-st.sidebar.header("🎛️ Настройка воронки")
+st.sidebar.header("🎛️ Настройка модели")
+ccu = st.sidebar.number_input("Текущий CCU:", value=1000, step=100)
+session_time = st.sidebar.number_input("Длина сессии (мин):", value=15)
+investment = st.sidebar.number_input("Инвестиции ($):", value=4500)
 
-# Основные данные
-ccu = st.sidebar.number_input("Текущий CCU:", 0, 100000, value=1000, step=100)
-session_time = st.sidebar.number_input("Длина сессии (мин):", 1, 240, value=15, step=1)
-
-# Твоя 4-шаговая воронка
 st.sidebar.markdown("---")
 st.sidebar.subheader("💎 Воронка Audience Expansion")
-attr_rate = st.sidebar.slider("1. Attribution Rate (30-60%)", 0.3, 0.6, value=0.45)
-retention_10min = st.sidebar.slider("2. Retention 10+ min (40-70%)", 0.4, 0.7, value=0.55)
-tracking_success = st.sidebar.slider("3. Tracking Success (50-80%)", 0.5, 0.8, value=0.65)
-spender_conv = st.sidebar.slider("4. Spender Conv (2-5%)", 0.02, 0.05, value=0.035)
-avg_spend = st.sidebar.number_input("Средний чек в Roblox ($):", 5.0, 100.0, value=15.0)
+attr_rate = st.sidebar.slider("1. Attribution Rate", 0.3, 0.6, value=0.45)
+retention_10min = st.sidebar.slider("2. Retention 10+ min", 0.4, 0.7, value=0.55)
+tracking_success = st.sidebar.slider("3. Tracking Success", 0.5, 0.8, value=0.65)
+spender_conv = st.sidebar.slider("4. Spender Conv", 0.02, 0.05, value=0.035)
+avg_spend = st.sidebar.number_input("Средний чек в Roblox ($)", value=15.0)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("💰 Финансовые коэффициенты")
+share = st.sidebar.slider("Доля инвестора (%)", 0, 100, value=35) / 100
+tax_rate = 0.06
+reinvest = 0.15
+marketing = 0.10
 
 # --- ЯДРО РАСЧЕТОВ ---
 # 1. Трафик
-daily_players = (ccu * 1440) / session_time if session_time > 0 else 0
-
-# 2. Расчет по твоей воронке (Audience Expansion)
-# Сколько игроков реально квалифицируются
+daily_players = (ccu * 1440) / session_time
+# 2. Воронка AE
 eligible_players = daily_players * attr_rate * retention_10min * tracking_success
-# Сколько из них платят
 paying_users = eligible_players * spender_conv
-# Доход (35% от трат)
-daily_revenue_ae = paying_users * (avg_spend * 0.35)
-monthly_revenue_ae = daily_revenue_ae * 30
+monthly_revenue_ae = (paying_users * (avg_spend * 0.35)) * 30
+# 3. Базовые донаты
+net_usd_donates = (daily_players * 0.025 * 280 * 0.7) * 0.0035 * 30 
 
-# 3. Внутриигровые донаты (оставляем базу)
-net_usd_donates = (daily_players * 0.025 * 280 * 0.7) * 0.0035 * 30 # Упрощенная база
+# ИТОГИ
+total_gross = net_usd_donates + monthly_revenue_ae
+total_pool = total_gross * (1.0 - tax_rate - reinvest - marketing)
+investor_payout = total_pool * share
+profit_studio = total_pool - investor_payout
 
-# --- ИТОГИ ---
-total_monthly_gross = net_usd_donates + monthly_revenue_ae
-
-# --- ВЫВОД НА ЭКРАН ---
+# --- ВЫВОД ---
 col1, col2, col3 = st.columns(3)
-col1.metric("Текущий CCU", f"{int(ccu):,}")
-col2.metric("DAU", f"{int(daily_players):,}")
-col3.metric("Eligible Users (Daily)", f"{int(eligible_players):,}")
+col1.metric("DAU", f"{int(daily_players):,}")
+col2.metric("Gross USD/мес", f"${total_gross:,.2f}")
+col3.metric("Выплата инвестору", f"${investor_payout:,.2f}")
 
 st.markdown("---")
-st.subheader("📊 Финансовый итог (в месяц)")
-c1, c2 = st.columns(2)
-c1.metric("Доход от Audience Expansion", f"${monthly_revenue_ae:,.2f}")
-c2.metric("Доход от Геймпасов (База)", f"${net_usd_donates:,.2f}")
+st.subheader("📊 Аналитика прибыли")
+c1, c2, c3 = st.columns(3)
+c1.metric("AE Revenue", f"${monthly_revenue_ae:,.2f}")
+c2.metric("Game Passes", f"${net_usd_donates:,.2f}")
+c3.metric("ROI срок", f"{investment/investor_payout:.1f} мес" if investor_payout > 0 else "∞")
 
-st.info(f"💡 **Вывод:** При CCU {ccu}, через Audience Expansion проходит {int(paying_users)} платящих игроков ежедневно. "
-        f"Это приносит ${monthly_revenue_ae:,.2f} в месяц чистыми.")
-
-# График эффективности
-fig, ax = plt.subplots(figsize=(10, 2))
-labels = ['Total Players', 'Attributed', '10+ Min Play', 'Tracked', 'Paying']
-values = [daily_players, 
-          daily_players * attr_rate, 
-          daily_players * attr_rate * retention_10min,
-          eligible_players,
-          paying_users * 100] # Умножаем на 100 для видимости на графике
-
-ax.barh(labels, values, color='#00ff41')
-ax.set_title("Воронка фильтрации игроков (ежедневно)")
+# График
+fig, ax = plt.subplots(figsize=(10, 3))
+months = np.arange(0, 7)
+ax.plot(months, -investment + (investor_payout * months), color='#00ff41', marker='o', linewidth=2)
+ax.axhline(0, color='white', linestyle='--')
 st.pyplot(fig)
