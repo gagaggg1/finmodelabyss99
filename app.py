@@ -64,7 +64,7 @@ else:
     st.sidebar.text(f"📉 Расчетный D30: {d30_calc:.1f}%")
     st.sidebar.markdown("---")
 
-    st.sidebar.subheader("🍩 Донат")
+    st.sidebar.subheader("🍩 dONUT")
     base_conv = st.sidebar.number_input("Конверсия (%):", 0.0, 100.0, value=2.5, step=0.1) / 100.0
     base_arppu = st.sidebar.number_input("Средний чек (R$):", 0, 100000, value=280, step=50)
     
