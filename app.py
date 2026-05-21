@@ -114,8 +114,9 @@ rewards_from_engagement_robux = monthly_qualified_engagement * 5.0
 # Переводим Часть А в USD через налог платформы и DevEx
 engagement_rewards_usd = (rewards_from_engagement_robux * (1.0 - ROBLOX_TAX)) * devex_rate
 
-# Часть Б: Affiliate Rewards (Правильная когортная модель)
-monthly_qualified_users = dau * ae_percent * 30
+# Часть Б: Affiliate Rewards (Исправленная когортная модель с учетом Decay)
+qualified_decay = 15.0 # Коэффициент учета overlap и окна выплат (вместо 30)
+monthly_qualified_users = dau * ae_percent * qualified_decay
 ae_payer_rate = 0.04 # 4% конверсия внутри qualified cohort
 affiliate_rewards_usd = monthly_qualified_users * ae_payer_rate * 15.0 * 0.35
 
