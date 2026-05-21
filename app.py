@@ -36,9 +36,10 @@ if input_mode == "Ползунки":
     base_conv = st.sidebar.slider("Базовая конверсия в донат (%):", 0.5, 10.0, value=2.5, step=0.1) / 100.0
     base_arppu = st.sidebar.slider("Базовый чек донатера (R$):", 50, 2000, value=280, step=10)
     
-    # БЛОК НАСТРОЕК CREATOR REWARDS
+    # БЛОК НАСТРОЕК CREATOR REWARDS (Элитная логика)
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.slider("Доля Active Spenders на платформе (%):", 0.5, 15.0, value=7.0, step=0.5) / 100.0
+    behavioral_filter = st.sidebar.slider("Эффективность фильтра (10+ мин) (%):", 1.0, 50.0, value=12.0, step=0.5) / 100.0
     ae_percent = st.sidebar.slider("Audience Expansion (Qualified %):", 0.1, 5.0, value=1.0, step=0.1) / 100.0
     
     st.sidebar.markdown("---")
@@ -69,6 +70,7 @@ else:
     
     st.sidebar.subheader("💎 Creator Rewards")
     vgu_ratio = st.sidebar.number_input("Доля Active Spenders (%):", 0.0, 100.0, value=7.0, step=0.5) / 100.0
+    behavioral_filter = st.sidebar.number_input("Эффективность фильтра (%):", 0.0, 100.0, value=12.0, step=0.5) / 100.0
     ae_percent = st.sidebar.number_input("Audience Expansion (Qualified %):", 0.1, 5.0, value=1.0, step=0.1) / 100.0
     
     st.sidebar.markdown("---")
@@ -105,11 +107,11 @@ gross_robux_donates = monthly_paying_users * real_arppu
 net_usd_donates = (gross_robux_donates * (1.0 - ROBLOX_TAX)) * devex_rate
 
 # 2. РАСЧЕТ CREATOR REWARDS
-# Часть А: Daily Engagement Rewards (5 R$ за топ-3 запуск от Active Spender)
-daily_active_spenders = dau * vgu_ratio
-top3_filter_ratio = 0.015  # Консервативные 1.5% прохождения фильтра топ-3 за сутки
-monthly_qualified_engagement = (daily_active_spenders * top3_filter_ratio) * 30
-rewards_from_engagement_robux = monthly_qualified_engagement * 5.0
+# Элитный фильтр: Active Spenders, прошедшие Behavioral Filter
+premium_pool = dau * vgu_ratio
+qualified_events_daily = premium_pool * behavioral_filter
+monthly_qualified_engagement = qualified_events_daily * 30
+rewards_from_engagement_robux = monthly_qualified_engagement * 6.0 # Среднее 6 R$
 
 # Переводим Часть А в USD через налог платформы и DevEx
 engagement_rewards_usd = (rewards_from_engagement_robux * (1.0 - ROBLOX_TAX)) * devex_rate
