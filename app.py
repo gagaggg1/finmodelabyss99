@@ -9,7 +9,7 @@ st.title("🐙 Бизнес-модель: «99 Nights in the Abyss»")
 
 # Константы
 ROBLOX_TAX = 0.30
-INVESTMENT = 4500
+INVESTMENT = 5000
 TARGET_SESSION = 15.0 
 
 # --- ИНТЕРФЕЙС: БОКОВАЯ ПАНЕЛЬ ---
